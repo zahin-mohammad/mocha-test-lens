@@ -118,7 +118,9 @@ describe('TestParser', () => {
         })
 
         it('should handle template literal strings', () => {
-            const blocks = parseDocument('describe(`TemplateLiteral`, () => {\n  it(`should work with backticks`, () => {\n  });\n});')
+            const blocks = parseDocument(
+                'describe(`TemplateLiteral`, () => {\n  it(`should work with backticks`, () => {\n  });\n});'
+            )
 
             assert.strictEqual(blocks.length, 2)
             assert.strictEqual(blocks[0].name, 'TemplateLiteral')
@@ -250,7 +252,8 @@ describe('Second', () => {
         })
 
         it('should escape special characters in grep pattern', () => {
-            const blocks = parseDocument(`describe('MyClass (with parens)', () => {
+            const blocks =
+                parseDocument(`describe('MyClass (with parens)', () => {
   it('should handle [special] chars', () => {});
 });`)
 

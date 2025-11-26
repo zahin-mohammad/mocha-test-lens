@@ -1,84 +1,102 @@
-import * as vscode from 'vscode';
-import { TestParser, TestBlock } from './testParser';
+import * as vscode from 'vscode'
+import { TestParser } from './testParser'
 
+/**
+ * Provides CodeLens decorations for Mocha test blocks
+ * Shows "Run Test" and "Debug Test" buttons above each test
+ */
 export class MochaCodeLensProvider implements vscode.CodeLensProvider {
-  private testParser: TestParser;
-  private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
-  public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
+    private testParser: TestParser
+    private _onDidChangeCodeLenses: vscode.EventEmitter<void> =
+        new vscode.EventEmitter<void>()
+    public readonly onDidChangeCodeLenses: vscode.Event<void> =
+        this._onDidChangeCodeLenses.event
 
-  constructor() {
-    this.testParser = new TestParser();
+    constructor() {
+        this.testParser = new TestParser()
 
-    // Refresh code lenses when document changes
-    vscode.workspace.onDidChangeTextDocument(() => {
-      this._onDidChangeCodeLenses.fire();
-    });
-  }
-
-  public provideCodeLenses(
-    document: vscode.TextDocument,
-    token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.CodeLens[]> {
-    console.log(`[MochaTestLens] provideCodeLenses called for: ${document.fileName}`);
-
-    // Only provide lenses for test files
-    if (!this.isTestFile(document)) {
-      console.log(`[MochaTestLens] File not recognized as test file: ${document.fileName}`);
-      return [];
+        // Refresh code lenses when document changes
+        vscode.workspace.onDidChangeTextDocument(() => {
+            this._onDidChangeCodeLenses.fire()
+        })
     }
 
-    const testBlocks = this.testParser.parseDocument(document);
-    console.log(`[MochaTestLens] Found ${testBlocks.length} test blocks in: ${document.fileName}`);
-    const codeLenses: vscode.CodeLens[] = [];
+    /**
+     * Provide CodeLens decorations for test blocks in the document
+     * @param document - The document to provide CodeLens for
+     * @returns Array of CodeLens decorations or undefined
+     */
+    public provideCodeLenses(
+        document: vscode.TextDocument
+    ): vscode.ProviderResult<vscode.CodeLens[]> {
+        try {
+            // Only provide lenses for test files
+            if (!this.isTestFile(document)) {
+                return []
+            }
 
-    for (const testBlock of testBlocks) {
-      const range = new vscode.Range(
-        testBlock.line,
-        testBlock.column,
-        testBlock.line,
-        testBlock.column
-      );
+            const testBlocks = this.testParser.parseDocument(document)
+            const codeLenses: vscode.CodeLens[] = []
 
-      // Create "Run Test" code lens
-      const runCommand: vscode.Command = {
-        title: '$(play) Run Test',
-        command: 'mochaTestLens.runTest',
-        arguments: [document.uri, testBlock],
-        tooltip: `Run: ${testBlock.fullName}`
-      };
+            for (const testBlock of testBlocks) {
+                const range = new vscode.Range(
+                    testBlock.line,
+                    testBlock.column,
+                    testBlock.line,
+                    testBlock.column
+                )
 
-      codeLenses.push(new vscode.CodeLens(range, runCommand));
+                // Create "Run Test" code lens
+                const runCommand: vscode.Command = {
+                    title: '$(play) Run Test',
+                    command: 'mochaTestLens.runTest',
+                    arguments: [document.uri, testBlock],
+                    tooltip: `Run: ${testBlock.fullName}`,
+                }
 
-      // Create "Debug Test" code lens
-      const debugCommand: vscode.Command = {
-        title: '$(debug-alt) Debug Test',
-        command: 'mochaTestLens.debugTest',
-        arguments: [document.uri, testBlock],
-        tooltip: `Debug: ${testBlock.fullName}`
-      };
+                codeLenses.push(new vscode.CodeLens(range, runCommand))
 
-      codeLenses.push(new vscode.CodeLens(range, debugCommand));
+                // Create "Debug Test" code lens
+                const debugCommand: vscode.Command = {
+                    title: '$(debug-alt) Debug Test',
+                    command: 'mochaTestLens.debugTest',
+                    arguments: [document.uri, testBlock],
+                    tooltip: `Debug: ${testBlock.fullName}`,
+                }
+
+                codeLenses.push(new vscode.CodeLens(range, debugCommand))
+            }
+
+            return codeLenses
+        } catch (error) {
+            // Silently fail - don't show error to user for CodeLens failures
+            // as they can be frequent during editing
+            return []
+        }
     }
 
-    return codeLenses;
-  }
+    /**
+     * Resolve a CodeLens (no additional resolution needed)
+     * @param codeLens - The CodeLens to resolve
+     * @returns The resolved CodeLens
+     */
+    public resolveCodeLens(
+        codeLens: vscode.CodeLens
+    ): vscode.ProviderResult<vscode.CodeLens> {
+        // No additional resolution needed
+        return codeLens
+    }
 
-  public resolveCodeLens(
-    codeLens: vscode.CodeLens,
-    token: vscode.CancellationToken
-  ): vscode.ProviderResult<vscode.CodeLens> {
-    // No additional resolution needed
-    return codeLens;
-  }
+    /**
+     * Check if a document is a test file based on naming conventions
+     * @param document - The document to check
+     * @returns True if the document is recognized as a test file
+     */
+    private isTestFile(document: vscode.TextDocument): boolean {
+        const fileName = document.fileName
 
-  private isTestFile(document: vscode.TextDocument): boolean {
-    const fileName = document.fileName;
-
-    // Check if it's a test file based on naming conventions
-    // TODO: use the mocha config spec fields to determine if the file is a test file
-    return (
-      fileName.includes('test/') ||
-      fileName.includes('spec/')
-    );
-  }
+        // Check if it's a test file based on naming conventions
+        // TODO: use the mocha config spec fields to determine if the file is a test file
+        return fileName.includes('test/') || fileName.includes('spec/')
+    }
 }

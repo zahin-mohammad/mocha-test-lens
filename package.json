@@ -1,87 +1,129 @@
 {
-  "name": "mocha-test-lens",
-  "displayName": "Mocha Test Lens",
-  "description": "Run individual Mocha tests with CodeLens in TypeScript files",
-  "version": "1.0.0",
-  "publisher": "mocha-test-lens",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/zahin-mohammad/mocha-test-lens.git"
-  },
-  "engines": {
-    "vscode": "^1.74.0"
-  },
-  "categories": [
-    "Testing"
-  ],
-  "main": "./out/extension.js",
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "contributes": {
-    "commands": [
-      {
-        "command": "mochaTestLens.runTest",
-        "title": "Run Test"
-      },
-      {
-        "command": "mochaTestLens.debugTest",
-        "title": "Debug Test"
-      },
-      {
-        "command": "mochaTestLens.testExtension",
-        "title": "Mocha Test Lens: Test Extension"
-      }
+    "name": "mocha-test-lens",
+    "displayName": "Mocha Test Lens",
+    "description": "Run individual Mocha tests with CodeLens in TypeScript files",
+    "version": "1.0.0",
+    "publisher": "zahin-mohammad",
+    "icon": "icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/zahin-mohammad/mocha-test-lens.git"
+    },
+    "homepage": "https://github.com/zahin-mohammad/mocha-test-lens",
+    "bugs": {
+        "url": "https://github.com/zahin-mohammad/mocha-test-lens/issues"
+    },
+    "author": {
+        "name": "Zahin Mohammad",
+        "url": "https://github.com/zahin-mohammad"
+    },
+    "keywords": [
+        "mocha",
+        "test",
+        "testing",
+        "codelens",
+        "typescript",
+        "javascript",
+        "tdd",
+        "bdd",
+        "unit-test",
+        "test-runner"
     ],
-    "configuration": {
-      "title": "Mocha Test Lens",
-      "properties": {
-        "mochaTestLens.env": {
-          "type": "object",
-          "default": {},
-          "description": "Environment variables to set when running tests"
-        },
-        "mochaTestLens.useNixNode": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use node from NODE_PATH environment variable (for nix environments)"
-        },
-        "mochaTestLens.nodeBinPath": {
-          "type": "string",
-          "default": "",
-          "description": "Custom path to node binary (leave empty to auto-detect)"
-        },
-        "mochaTestLens.tsNodeArgs": {
-          "type": "array",
-          "default": [],
-          "description": "Arguments to pass to ts-node (e.g., [\"--transpiler\", \"sucrase/ts-node-plugin\"])"
-        },
-        "mochaTestLens.workspaceRoot": {
-          "type": "string",
-          "default": "",
-          "description": "Root directory of the workspace (leave empty to auto-detect)"
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Testing"
+    ],
+    "main": "./out/extension.js",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "mochaTestLens.runTest",
+                "title": "Run Test",
+                "icon": "$(play)"
+            },
+            {
+                "command": "mochaTestLens.debugTest",
+                "title": "Debug Test",
+                "icon": "$(debug-alt)"
+            },
+            {
+                "command": "mochaTestLens.testExtension",
+                "title": "Mocha Test Lens: Test Extension",
+                "icon": "$(beaker)"
+            }
+        ],
+        "configuration": {
+            "title": "Mocha Test Lens",
+            "properties": {
+                "mochaTestLens.env": {
+                    "type": "object",
+                    "default": {},
+                    "description": "Environment variables to set when running tests. Example: {\"NODE_ENV\": \"test\", \"TS_NODE_TRANSPILE_ONLY\": \"true\"}",
+                    "markdownDescription": "Environment variables to set when running tests.\n\nExample:\n```json\n{\n  \"NODE_ENV\": \"test\",\n  \"TS_NODE_TRANSPILE_ONLY\": \"true\"\n}\n```"
+                },
+                "mochaTestLens.nodePath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the node binary. Leave empty to auto-detect using VS Code's node resolution (recommended).",
+                    "markdownDescription": "Path to the node binary. Leave empty to auto-detect using VS Code's node resolution (recommended).\n\nWhen empty, the extension will use VS Code's built-in node detection, which typically uses the node from your system PATH or the one VS Code is running with.\n\nExamples:\n- `/usr/bin/node` - System node\n- `/nix/store/.../bin/node` - Nix-managed node\n- `.nix-bin-stubs/node` - Nix stub in workspace"
+                },
+                "mochaTestLens.transpiler": {
+                    "type": "string",
+                    "enum": [
+                        "tsx",
+                        "ts-node",
+                        "none"
+                    ],
+                    "default": "tsx",
+                    "description": "TypeScript transpiler to use. Options: 'tsx' (default, faster), 'ts-node' (traditional), or 'none' (for JavaScript only).",
+                    "markdownDescription": "TypeScript transpiler to use.\n\n- `tsx`: Fast TypeScript execution (default)\n- `ts-node`: Traditional TypeScript execution\n- `none`: No transpiler (for JavaScript projects only)"
+                },
+                "mochaTestLens.transpilerArgs": {
+                    "type": "array",
+                    "default": [],
+                    "description": "Arguments to pass to the transpiler when running TypeScript tests. Example for ts-node: [\"--transpiler\", \"sucrase/ts-node-plugin\"]",
+                    "markdownDescription": "Arguments to pass to the transpiler when running TypeScript tests.\n\nExample for ts-node:\n```json\n[\"--transpiler\", \"sucrase/ts-node-plugin\"]\n```\n\nExample for tsx:\n```json\n[\"--no-warnings\"]\n```"
+                },
+                "mochaTestLens.workspaceRoot": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Root directory of the workspace. Leave empty to auto-detect from VS Code workspace folders.",
+                    "markdownDescription": "Root directory of the workspace. Leave empty to auto-detect from VS Code workspace folders.\n\nThis is useful when working with monorepos or when the workspace root differs from the VS Code workspace folder."
+                }
+            }
         }
-      }
+    },
+    "scripts": {
+        "build": "npm run compile",
+        "vscode:prepublish": "npm run compile",
+        "prepublishOnly": "npm run test && npm run lint && npm run prettier:check && npm audit --audit-level=moderate",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "test": "mocha --require tsx --require ./test/setup.ts 'test/**/*.test.ts'",
+        "test:watch": "mocha --require tsx --require ./test/setup.ts --watch --watch-extensions ts 'test/**/*.test.ts'",
+        "lint": "eslint src --ext ts",
+        "lint:fix": "eslint src --ext ts --fix",
+        "prettier:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+        "prettier:fix": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    },
+    "devDependencies": {
+        "@types/mocha": "^10.0.6",
+        "@types/node": "^18.0.0",
+        "@types/sinon": "^17.0.3",
+        "@types/vscode": "^1.74.0",
+        "@typescript-eslint/eslint-plugin": "^7.0.0",
+        "@typescript-eslint/parser": "^7.0.0",
+        "@vscode/vsce": "^3.7.1",
+        "eslint": "^8.57.0",
+        "mocha": "^10.4.0",
+        "prettier": "^3.6.2",
+        "sinon": "^17.0.1",
+        "tsx": "^4.20.6",
+        "typescript": "^4.9.0"
     }
-  },
-  "scripts": {
-    "build": "npm run compile",
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "test": "mocha --require tsx --require ./test/setup.ts 'test/**/*.test.ts'",
-    "test:watch": "mocha --require tsx --require ./test/setup.ts --watch --watch-extensions ts 'test/**/*.test.ts'"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^18.0.0",
-    "@types/sinon": "^17.0.3",
-    "@types/vscode": "^1.74.0",
-    "@vscode/vsce": "^3.7.1",
-    "mocha": "^10.4.0",
-    "prettier": "^3.6.2",
-    "sinon": "^17.0.1",
-    "tsx": "^4.20.6",
-    "typescript": "^4.9.0"
-  }
 }

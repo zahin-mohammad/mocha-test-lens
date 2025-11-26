@@ -1,210 +1,421 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
-import { TestBlock, TestParser } from './testParser';
+import * as vscode from 'vscode'
+import * as path from 'path'
+import * as fs from 'fs'
+import * as os from 'os'
+import { TestBlock, TestParser } from './testParser'
 
+// Allow fs.existsSync to be mocked in tests
+export const fileSystem = {
+    existsSync: fs.existsSync,
+}
+
+/**
+ * Handles execution and debugging of Mocha tests
+ */
 export class TestRunner {
-  private testParser: TestParser;
-  private outputChannel: vscode.OutputChannel;
+    private testParser: TestParser
+    private outputChannel: vscode.OutputChannel
 
-  constructor() {
-    this.testParser = new TestParser();
-    this.outputChannel = vscode.window.createOutputChannel('Mocha Test Runner');
-  }
-
-  /**
-   * Run a test in the terminal
-   */
-  public async runTest(uri: vscode.Uri, testBlock: TestBlock): Promise<void> {
-    const config = vscode.workspace.getConfiguration('mochaTestLens');
-    const filePath = uri.fsPath;
-    const grepPattern = this.testParser.buildGrepPattern(testBlock);
-
-    // Build the command
-    const command = this.buildTestCommand(filePath, grepPattern, config);
-
-    // Create or reuse terminal
-    const terminal = this.getOrCreateTerminal();
-    terminal.show();
-
-    // Log the command
-    this.outputChannel.appendLine(`Running test: ${testBlock.fullName}`);
-    this.outputChannel.appendLine(`Command: ${command}`);
-
-    // Execute the command
-    terminal.sendText(command);
-  }
-
-  /**
-   * Debug a test
-   */
-  public async debugTest(uri: vscode.Uri, testBlock: TestBlock): Promise<void> {
-    const config = vscode.workspace.getConfiguration('mochaTestLens');
-    const filePath = uri.fsPath;
-    const grepPattern = this.testParser.buildGrepPattern(testBlock);
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-
-    if (!workspaceFolder) {
-      vscode.window.showErrorMessage('No workspace folder found for test file');
-      return;
+    constructor() {
+        this.testParser = new TestParser()
+        this.outputChannel =
+            vscode.window.createOutputChannel('Mocha Test Runner')
     }
 
-    // Create debug configuration
-    const debugConfig: vscode.DebugConfiguration = {
-      type: 'node',
-      request: 'launch',
-      name: `Debug: ${testBlock.name}`,
-      preLaunchTask: 'nixenv',
-      outputCapture: 'std',
-      program: '${workspaceFolder}/node_modules/.bin/ts-node',
-      env: config.get('env', {}),
-      envFile: '${workspaceFolder}/.vscode/nixenv',
-      args: [
-        ...config.get('tsNodeArgs', []),
-        '${workspaceFolder}/node_modules/.bin/mocha',
-        filePath,
-        '--grep',
-        grepPattern
-      ],
-      cwd: workspaceFolder.uri.fsPath,
-      internalConsoleOptions: 'openOnSessionStart'
-    };
+    /**
+     * Run a test in the terminal
+     */
+    public async runTest(uri: vscode.Uri, testBlock: TestBlock): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('mochaTestLens')
+            const filePath = uri.fsPath
 
-    // Start debugging
-    await vscode.debug.startDebugging(workspaceFolder, debugConfig);
-  }
+            // Verify test file exists
+            if (!fileSystem.existsSync(filePath)) {
+                vscode.window.showErrorMessage(
+                    `Test file not found: ${filePath}`
+                )
+                return
+            }
 
-  /**
-   * Build the test command
-   */
-  private buildTestCommand(filePath: string, grepPattern: string, config: vscode.WorkspaceConfiguration): string {
-    const useNixNode = config.get('useNixNode', true);
-    const customNodePath = config.get('nodeBinPath', '');
-    const tsNodeArgs = config.get('tsNodeArgs', []) as string[];
-    const env = config.get('env', {}) as Record<string, string>;
+            const grepPattern = this.testParser.buildGrepPattern(testBlock)
 
-    // Get workspace root - use config or auto-detect
-    let workspaceRoot = config.get('workspaceRoot', '') as string;
-    if (!workspaceRoot && vscode.workspace.workspaceFolders) {
-      workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-    }
+            // Build the command
+            const command = this.buildTestCommand(filePath, grepPattern, config)
 
-    // Build environment variables
-    const envVars = Object.entries(env)
-      .map(([key, value]) => `${key}="${value}"`)
-      .join(' ');
+            // Create or reuse terminal
+            const terminal = this.getOrCreateTerminal()
+            terminal.show()
 
-    // Build the base command
-    let command = '';
+            // Log the command
+            this.outputChannel.appendLine(`Running test: ${testBlock.fullName}`)
+            this.outputChannel.appendLine(`Command: ${command}`)
 
-    // Add environment variables
-    if (envVars) {
-      command += `${envVars} `;
-    }
-
-    // Determine node binary path
-    let nodeBinPath = 'node'; // default
-
-    if (customNodePath) {
-      // Use custom path if provided
-      nodeBinPath = customNodePath;
-    } else if (useNixNode && process.env.NODE_PATH) {
-      // Try to detect nix node binary
-      const nodePath = process.env.NODE_PATH;
-      // NODE_PATH typically points to node_modules, so we need to go up and find the binary
-      const possibleNodePath = nodePath.replace(/\/lib\/node_modules$/, '/bin/node');
-      if (possibleNodePath !== nodePath) {
-        nodeBinPath = possibleNodePath;
-      }
-    } else if (vscode.workspace.workspaceFolders) {
-      // Try to find .nix-bin-stubs/node in workspace
-      const nixStubPath = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, '.nix-bin-stubs', 'node');
-      try {
-        if (require('fs').existsSync(nixStubPath)) {
-          nodeBinPath = nixStubPath;
+            // Execute the command
+            terminal.sendText(command)
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.outputChannel.appendLine(`Error running test: ${errorMessage}`)
+            vscode.window.showErrorMessage(
+                `Failed to run test: ${errorMessage}`
+            )
         }
-      } catch {
-        // Ignore if file doesn't exist
-      }
     }
 
-    command += `${nodeBinPath} `;
+    /**
+     * Debug a test
+     */
+    public async debugTest(
+        uri: vscode.Uri,
+        testBlock: TestBlock
+    ): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('mochaTestLens')
+            const filePath = uri.fsPath
 
-    // Determine paths relative to workspace root
-    const tsNodePath = workspaceRoot
-      ? path.join(workspaceRoot, 'node_modules/.bin/ts-node')
-      : 'node_modules/.bin/ts-node';
+            // Verify test file exists
+            if (!fileSystem.existsSync(filePath)) {
+                vscode.window.showErrorMessage(
+                    `Test file not found: ${filePath}`
+                )
+                return
+            }
 
-    const mochaPath = workspaceRoot
-      ? path.join(workspaceRoot, 'node_modules/.bin/mocha')
-      : 'node_modules/.bin/mocha';
+            const grepPattern = this.testParser.buildGrepPattern(testBlock)
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri)
 
-    // Add ts-node with arguments
-    command += `${tsNodePath} `;
-    if (tsNodeArgs.length > 0) {
-      command += tsNodeArgs.join(' ') + ' ';
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage(
+                    'No workspace folder found for test file'
+                )
+                return
+            }
+
+            // Determine transpiler and build debug args
+            const transpiler = config.get('transpiler', 'tsx') as string
+            const transpilerArgs = config.get(
+                'transpilerArgs',
+                []
+            ) as string[]
+            const isTypeScriptFile =
+                filePath.endsWith('.ts') || filePath.endsWith('.tsx')
+
+            // Build debug program and args
+            let debugProgram: string
+            let debugArgs: string[]
+
+            if (transpiler !== 'none' && isTypeScriptFile) {
+                const transpilerBinName =
+                    transpiler === 'ts-node' ? 'ts-node' : 'tsx'
+                debugProgram = `\${workspaceFolder}/node_modules/.bin/mocha`
+                debugArgs = [
+                    '--require',
+                    transpilerBinName,
+                    '--require',
+                    `\${workspaceFolder}/test/setup.ts`,
+                    ...transpilerArgs,
+                    filePath,
+                    '--grep',
+                    grepPattern,
+                ]
+            } else {
+                // For JavaScript or 'none' transpiler, run mocha directly
+                debugProgram = `\${workspaceFolder}/node_modules/.bin/mocha`
+                debugArgs = [
+                    '--require',
+                    `\${workspaceFolder}/test/setup.ts`,
+                    filePath,
+                    '--grep',
+                    grepPattern,
+                ]
+            }
+
+            // Create debug configuration
+            const debugConfig: vscode.DebugConfiguration = {
+                type: 'node',
+                request: 'launch',
+                name: `Debug: ${testBlock.name}`,
+                outputCapture: 'std',
+                program: debugProgram,
+                env: config.get('env', {}),
+                args: debugArgs,
+                cwd: workspaceFolder.uri.fsPath,
+                internalConsoleOptions: 'openOnSessionStart',
+            }
+
+            // Add preLaunchTask if configured
+            const preLaunchTask = config.get('debugPreLaunchTask', '') as string
+            if (preLaunchTask) {
+                debugConfig.preLaunchTask = preLaunchTask
+            }
+
+            // Add envFile if configured
+            const envFile = config.get('debugEnvFile', '') as string
+            if (envFile) {
+                debugConfig.envFile = envFile
+            }
+
+            // Add runtimeExecutable only if nodePath is explicitly configured
+            // Otherwise, let VS Code use its default node resolution
+            const customNodePath = config.get('nodePath', '') as string
+            if (customNodePath) {
+                debugConfig.runtimeExecutable = customNodePath
+            }
+
+            // Start debugging
+            await vscode.debug.startDebugging(workspaceFolder, debugConfig)
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.outputChannel.appendLine(
+                `Error debugging test: ${errorMessage}`
+            )
+            vscode.window.showErrorMessage(
+                `Failed to debug test: ${errorMessage}`
+            )
+        }
     }
 
-    // Add mocha
-    command += `${mochaPath} `;
+    /**
+     * Build the test command
+     */
+    /**
+     * Get the node binary path, using VS Code's detection or custom path
+     */
+    private getNodePath(
+        config: vscode.WorkspaceConfiguration,
+        workspaceRoot?: string
+    ): string {
+        const customNodePath = config.get('nodePath', '') as string
+        if (customNodePath) {
+            return customNodePath
+        }
 
-    // Add the test file
-    command += `"${filePath}" `;
+        // Try to derive node path from NODE_PATH (for nix environments)
+        if (process.env.NODE_PATH) {
+            const nodeBinPath = process.env.NODE_PATH.replace(
+                /\/lib\/node_modules$/,
+                '/bin/node'
+            )
+            if (fileSystem.existsSync(nodeBinPath)) {
+                return nodeBinPath
+            }
+        }
 
-    // Add grep pattern
-    command += `--grep "${grepPattern}"`;
+        // Check common nix locations
+        // Look for .nix-bin-stubs in current directory and parent directories (up to workspace root)
+        if (workspaceRoot) {
+            let currentDir = workspaceRoot
+            const rootDir = path.parse(workspaceRoot).root
+            
+            // Walk up the directory tree looking for .nix-bin-stubs
+            while (currentDir !== rootDir) {
+                const nixStubPath = path.join(currentDir, '.nix-bin-stubs', 'node')
+                if (fileSystem.existsSync(nixStubPath)) {
+                    return nixStubPath
+                }
+                const parentDir = path.dirname(currentDir)
+                if (parentDir === currentDir) {
+                    break // Reached root
+                }
+                currentDir = parentDir
+            }
+        }
 
-    return command;
-  }
+        // Check for nvm (Node Version Manager)
+        // First, check if workspace has .nvmrc file
+        if (workspaceRoot) {
+            const nvmrcPath = path.join(workspaceRoot, '.nvmrc')
+            if (fileSystem.existsSync(nvmrcPath)) {
+                try {
+                    const nvmrcContent = fs
+                        .readFileSync(nvmrcPath, 'utf-8')
+                        .trim()
+                    const nodeVersion = nvmrcContent.replace(/^v/, '') // Remove 'v' prefix if present
+                    const nvmDir =
+                        process.env.NVM_DIR || path.join(os.homedir(), '.nvm')
+                    const nvmVersionPath = path.join(
+                        nvmDir,
+                        'versions',
+                        'node',
+                        `v${nodeVersion}`,
+                        'bin',
+                        'node'
+                    )
+                    if (fileSystem.existsSync(nvmVersionPath)) {
+                        return nvmVersionPath
+                    }
+                } catch (error) {
+                    // Ignore errors reading .nvmrc
+                }
+            }
+        }
 
-  /**
-   * Get or create a terminal for running tests
-   */
-  private getOrCreateTerminal(): vscode.Terminal {
-    const terminalName = 'Mocha Tests';
+        // Check NVM_BIN environment variable (set when nvm is active)
+        const nvmBin = process.env.NVM_BIN
+        if (nvmBin) {
+            const nvmNodePath = path.join(nvmBin, 'node')
+            if (fileSystem.existsSync(nvmNodePath)) {
+                return nvmNodePath
+            }
+        }
 
-    // Try to find existing terminal
-    const existingTerminal = vscode.window.terminals.find(t => t.name === terminalName);
-    if (existingTerminal) {
-      return existingTerminal;
+        // Check nvm current symlink
+        const nvmDir = process.env.NVM_DIR || path.join(os.homedir(), '.nvm')
+        const nvmCurrentPath = path.join(nvmDir, 'current', 'bin', 'node')
+        if (fileSystem.existsSync(nvmCurrentPath)) {
+            return nvmCurrentPath
+        }
+
+        // Default: use 'node' from system PATH
+        return 'node'
     }
 
-    // Create new terminal with environment
-    const config = vscode.workspace.getConfiguration('mochaTestLens');
-    const workspaceRoot = config.get('workspaceRoot', '') as string;
-    const env = config.get('env', {}) as Record<string, string>;
+    private buildTestCommand(
+        filePath: string,
+        grepPattern: string,
+        config: vscode.WorkspaceConfiguration
+    ): string {
+        const transpiler = config.get('transpiler', 'tsx') as string
+        const transpilerArgs = config.get(
+            'transpilerArgs',
+            []
+        ) as string[]
+        const env = config.get('env', {}) as Record<string, string>
 
-    const terminal = vscode.window.createTerminal({
-      name: terminalName,
-      cwd: workspaceRoot || undefined,
-      env: env
-    });
+        // Get workspace root - use config or auto-detect
+        let workspaceRoot = config.get('workspaceRoot', '') as string
+        if (!workspaceRoot && vscode.workspace.workspaceFolders) {
+            workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
+        }
 
-    return terminal;
-  }
+        // Build environment variables
+        const envVars = Object.entries(env)
+            .map(([key, value]) => `${key}="${value}"`)
+            .join(' ')
 
-  /**
-   * Run all tests in a file
-   */
-  public async runAllTests(uri: vscode.Uri): Promise<void> {
-    const config = vscode.workspace.getConfiguration('mochaTestLens');
-    const filePath = uri.fsPath;
+        // Build the base command
+        let command = ''
 
-    // Build the command without grep pattern
-    const command = this.buildTestCommand(filePath, '', config).replace(' --grep ""', '');
+        // Add environment variables
+        if (envVars) {
+            command += `${envVars} `
+        }
 
-    // Create or reuse terminal
-    const terminal = this.getOrCreateTerminal();
-    terminal.show();
+        // Get node path (auto-detects or uses custom)
+        const nodeBinPath = this.getNodePath(config, workspaceRoot)
+        command += `${nodeBinPath} `
 
-    // Log the command
-    this.outputChannel.appendLine(`Running all tests in: ${filePath}`);
-    this.outputChannel.appendLine(`Command: ${command}`);
+        // Determine paths relative to workspace root
+        const mochaPath = workspaceRoot
+            ? path.join(workspaceRoot, 'node_modules/.bin/mocha')
+            : 'node_modules/.bin/mocha'
 
-    // Execute the command
-    terminal.sendText(command);
-  }
+        // Add transpiler if needed (skip for 'none' or JavaScript files)
+        const isTypeScriptFile =
+            filePath.endsWith('.ts') || filePath.endsWith('.tsx')
+        if (transpiler !== 'none' && isTypeScriptFile) {
+            const transpilerBinName =
+                transpiler === 'ts-node' ? 'ts-node' : 'tsx'
+            const transpilerPath = workspaceRoot
+                ? path.join(
+                      workspaceRoot,
+                      `node_modules/.bin/${transpilerBinName}`
+                  )
+                : `node_modules/.bin/${transpilerBinName}`
 
-  public dispose(): void {
-    this.outputChannel.dispose();
-  }
+            command += `${transpilerPath} `
+            if (transpilerArgs.length > 0) {
+                command += transpilerArgs.join(' ') + ' '
+            }
+        }
+
+        // Add mocha
+        command += `${mochaPath} `
+
+        // Add the test file
+        command += `"${filePath}" `
+
+        // Add grep pattern
+        command += `--grep "${grepPattern}"`
+
+        return command
+    }
+
+    /**
+     * Get or create a terminal for running tests
+     */
+    private getOrCreateTerminal(): vscode.Terminal {
+        const terminalName = 'Mocha Tests'
+
+        // Try to find existing terminal
+        const existingTerminal = vscode.window.terminals.find(
+            (t) => t.name === terminalName
+        )
+        if (existingTerminal) {
+            return existingTerminal
+        }
+
+        // Create new terminal with environment
+        const config = vscode.workspace.getConfiguration('mochaTestLens')
+        const workspaceRoot = config.get('workspaceRoot', '') as string
+        const env = config.get('env', {}) as Record<string, string>
+
+        const terminal = vscode.window.createTerminal({
+            name: terminalName,
+            cwd: workspaceRoot || undefined,
+            env: env,
+        })
+
+        return terminal
+    }
+
+    /**
+     * Run all tests in a file
+     */
+    public async runAllTests(uri: vscode.Uri): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('mochaTestLens')
+            const filePath = uri.fsPath
+
+            // Verify test file exists
+            if (!fileSystem.existsSync(filePath)) {
+                vscode.window.showErrorMessage(
+                    `Test file not found: ${filePath}`
+                )
+                return
+            }
+
+            // Build the command without grep pattern
+            const command = this.buildTestCommand(filePath, '', config).replace(
+                ' --grep ""',
+                ''
+            )
+
+            // Create or reuse terminal
+            const terminal = this.getOrCreateTerminal()
+            terminal.show()
+
+            // Log the command
+            this.outputChannel.appendLine(`Running all tests in: ${filePath}`)
+            this.outputChannel.appendLine(`Command: ${command}`)
+
+            // Execute the command
+            terminal.sendText(command)
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.outputChannel.appendLine(
+                `Error running all tests: ${errorMessage}`
+            )
+            vscode.window.showErrorMessage(
+                `Failed to run tests: ${errorMessage}`
+            )
+        }
+    }
+
+    public dispose(): void {
+        this.outputChannel.dispose()
+    }
 }
