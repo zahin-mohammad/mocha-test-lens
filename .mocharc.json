@@ -1,7 +1,6 @@
 {
-  "require": ["tsx", "./test/setup.ts"],
-  "spec": ["test/**/*.test.ts"],
-  "reporter": "spec",
-  "timeout": 5000
+    "require": ["tsx", "./test/setup.ts"],
+    "spec": ["test/**/*.test.ts"],
+    "reporter": "spec",
+    "timeout": 5000
 }
-

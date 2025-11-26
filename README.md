@@ -111,13 +111,13 @@ Configure the extension in your VS Code settings:
 
 ### Configuration Options
 
-| Setting                        | Type   | Default | Description                                                        |
-| ------------------------------ | ------ | ------- | ------------------------------------------------------------------ |
-| `mochaTestLens.env`            | object | `{}`    | Environment variables to set when running tests                    |
-| `mochaTestLens.nodePath`       | string | `""`    | Path to node binary (auto-detected if empty)                       |
-| `mochaTestLens.workspaceRoot`  | string | `""`    | Workspace root directory (auto-detected if empty)                  |
-| `mochaTestLens.debugPreLaunchTask` | string | `""`    | VS Code task name to run before debugging (e.g., `"nixenv"`)       |
-| `mochaTestLens.debugEnvFile`   | string | `""`    | Path to environment file to load when debugging                   |
+| Setting                            | Type   | Default | Description                                                  |
+| ---------------------------------- | ------ | ------- | ------------------------------------------------------------ |
+| `mochaTestLens.env`                | object | `{}`    | Environment variables to set when running tests              |
+| `mochaTestLens.nodePath`           | string | `""`    | Path to node binary (auto-detected if empty)                 |
+| `mochaTestLens.workspaceRoot`      | string | `""`    | Workspace root directory (auto-detected if empty)            |
+| `mochaTestLens.debugPreLaunchTask` | string | `""`    | VS Code task name to run before debugging (e.g., `"nixenv"`) |
+| `mochaTestLens.debugEnvFile`       | string | `""`    | Path to environment file to load when debugging              |
 
 ## Node Path Detection
 
@@ -162,9 +162,9 @@ Example `.mocharc.json`:
 
 ```json
 {
-  "require": ["tsx", "test/setup.ts"],
-  "timeout": 5000,
-  "reporter": "spec"
+    "require": ["tsx", "test/setup.ts"],
+    "timeout": 5000,
+    "reporter": "spec"
 }
 ```
 
@@ -172,9 +172,9 @@ Example `package.json`:
 
 ```json
 {
-  "mocha": {
-    "require": ["tsx", "test/setup.ts"]
-  }
+    "mocha": {
+        "require": ["tsx", "test/setup.ts"]
+    }
 }
 ```
 

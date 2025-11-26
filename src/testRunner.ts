@@ -181,10 +181,14 @@ export class TestRunner {
         if (workspaceRoot) {
             let currentDir = workspaceRoot
             const rootDir = path.parse(workspaceRoot).root
-            
+
             // Walk up the directory tree looking for .nix-bin-stubs
             while (currentDir !== rootDir) {
-                const nixStubPath = path.join(currentDir, '.nix-bin-stubs', 'node')
+                const nixStubPath = path.join(
+                    currentDir,
+                    '.nix-bin-stubs',
+                    'node'
+                )
                 if (fileSystem.existsSync(nixStubPath)) {
                     return nixStubPath
                 }

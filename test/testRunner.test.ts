@@ -197,7 +197,10 @@ describe('TestRunner', () => {
             const command = terminalSendTextStub.firstCall.args[0]
             // Command should run mocha directly - Mocha config handles transpiler
             assert.ok(command.includes('mocha'), 'Should include mocha')
-            assert.ok(command.includes('/workspace/test/myclass.test.ts'), 'Should include test file')
+            assert.ok(
+                command.includes('/workspace/test/myclass.test.ts'),
+                'Should include test file'
+            )
         })
 
         it('should reuse existing terminal with same name', async () => {
@@ -396,7 +399,10 @@ describe('TestRunner', () => {
             assert.ok(command, 'Command should exist')
             // Should run mocha directly - Mocha config handles transpiler setup
             assert.ok(command.includes('mocha'), 'Should include mocha')
-            assert.ok(command.includes('/workspace/test/myclass.test.ts'), 'Should include test file')
+            assert.ok(
+                command.includes('/workspace/test/myclass.test.ts'),
+                'Should include test file'
+            )
         })
 
         it('should run mocha directly (Mocha config handles transpiler)', async () => {
@@ -413,8 +419,14 @@ describe('TestRunner', () => {
             // Command should run mocha directly - transpiler setup is handled by Mocha config files
             assert.ok(command.includes('mocha'), 'Should run mocha')
             // Should not include transpiler in command (handled by Mocha config)
-            assert.ok(!command.includes('tsx'), 'Should not include tsx in command')
-            assert.ok(!command.includes('ts-node'), 'Should not include ts-node in command')
+            assert.ok(
+                !command.includes('tsx'),
+                'Should not include tsx in command'
+            )
+            assert.ok(
+                !command.includes('ts-node'),
+                'Should not include ts-node in command'
+            )
         })
 
         it('should run mocha directly regardless of transpiler config', async () => {
@@ -457,7 +469,10 @@ describe('TestRunner', () => {
 
             const command = terminalSendTextStub.firstCall.args[0]
             assert.ok(command.includes('mocha'), 'Should include mocha')
-            assert.ok(command.includes('/workspace/test/myclass.test.js'), 'Should include test file')
+            assert.ok(
+                command.includes('/workspace/test/myclass.test.js'),
+                'Should include test file'
+            )
         })
 
         it('should quote file paths with spaces', async () => {
