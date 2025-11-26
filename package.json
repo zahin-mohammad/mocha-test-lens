@@ -1,0 +1,74 @@
+{
+  "name": "mocha-test-lens",
+  "displayName": "Mocha Test Lens",
+  "description": "Run individual Mocha tests with CodeLens in TypeScript files",
+  "version": "1.0.0",
+  "publisher": "mocha-test-lens",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Testing"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mochaTestLens.runTest",
+        "title": "Run Test"
+      },
+      {
+        "command": "mochaTestLens.debugTest",
+        "title": "Debug Test"
+      },
+      {
+        "command": "mochaTestLens.testExtension",
+        "title": "Mocha Test Lens: Test Extension"
+      }
+    ],
+    "configuration": {
+      "title": "Mocha Test Lens",
+      "properties": {
+        "mochaTestLens.env": {
+          "type": "object",
+          "default": {},
+          "description": "Environment variables to set when running tests"
+        },
+        "mochaTestLens.useNixNode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use node from NODE_PATH environment variable (for nix environments)"
+        },
+        "mochaTestLens.nodeBinPath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to node binary (leave empty to auto-detect)"
+        },
+        "mochaTestLens.tsNodeArgs": {
+          "type": "array",
+          "default": [],
+          "description": "Arguments to pass to ts-node (e.g., [\"--transpiler\", \"sucrase/ts-node-plugin\"])"
+        },
+        "mochaTestLens.workspaceRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Root directory of the workspace (leave empty to auto-detect)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "@vscode/vsce": "^3.7.1",
+    "typescript": "^4.9.0"
+  }
+}
