@@ -2,7 +2,6 @@
     "name": "mocha-test-lens",
     "displayName": "Mocha Test Lens",
     "description": "Run individual Mocha tests with CodeLens in TypeScript files",
-    "version": "1.0.0",
     "publisher": "zahin-mohammad",
     "icon": "icon.png",
     "repository": {
@@ -92,7 +91,8 @@
         "lint": "eslint src --ext ts",
         "lint:fix": "eslint src --ext ts --fix",
         "prettier:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-        "prettier:fix": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+        "prettier:fix": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+        "semantic-release": "semantic-release"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.6",
@@ -105,6 +105,7 @@
         "eslint": "^8.57.0",
         "mocha": "^10.4.0",
         "prettier": "^3.6.2",
+        "semantic-release": "^23.0.0",
         "sinon": "^17.0.1",
         "tsx": "^4.20.6",
         "typescript": "^4.9.0"
