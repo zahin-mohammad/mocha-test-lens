@@ -2,6 +2,7 @@
     "name": "mocha-test-lens",
     "displayName": "Mocha Test Lens",
     "description": "Run individual Mocha tests with CodeLens in TypeScript files",
+    "version": "0.0.0-semantic-release",
     "publisher": "zahin-mohammad",
     "icon": "icon.png",
     "repository": {

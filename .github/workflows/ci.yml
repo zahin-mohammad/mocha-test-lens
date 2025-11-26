@@ -87,8 +87,10 @@ jobs:
       - name: Build extension
         run: npm run compile
 
-      - name: Package extension
-        run: npx @vscode/vsce package --no-yarn
+      - name: Prepare and package release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/prepare-release.js
 
       - name: Run semantic-release
         env:
