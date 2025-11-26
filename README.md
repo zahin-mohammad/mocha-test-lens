@@ -44,11 +44,7 @@ npm run compile
 
 4. **Package the extension**:
 ```bash
-# Install vsce if you don't have it
-npm install -g @vscode/vsce
-
-# Package the extension
-vsce package --allow-missing-repository
+npx @vscode/vsce package 
 ```
 
 5. **Install the generated VSIX file**:
