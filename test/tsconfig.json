@@ -3,13 +3,13 @@
     "module": "commonjs",
     "target": "es2020",
     "lib": ["es2020"],
-    "outDir": "out",
+    "outDir": "../out/test",
     "sourceMap": true,
-    "rootDir": "src",
-    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
   },
-  "exclude": ["node_modules", ".vscode-test", "test"]
+  "include": ["./**/*.ts"],
+  "exclude": ["../node_modules"]
 }
