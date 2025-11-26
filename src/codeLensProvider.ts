@@ -19,17 +19,12 @@ export class MochaCodeLensProvider implements vscode.CodeLensProvider {
     document: vscode.TextDocument,
     token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.CodeLens[]> {
-    console.log(`CodeLens provider called for: ${document.fileName}`);
-
     // Only provide lenses for test files
     if (!this.isTestFile(document)) {
-      console.log(`Not a test file: ${document.fileName}`);
       return [];
     }
 
-    console.log(`Processing test file: ${document.fileName}`);
     const testBlocks = this.testParser.parseDocument(document);
-    console.log(`Found ${testBlocks.length} test blocks`);
     const codeLenses: vscode.CodeLens[] = [];
 
     for (const testBlock of testBlocks) {

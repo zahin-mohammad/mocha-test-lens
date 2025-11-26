@@ -9,23 +9,18 @@ let isActivated = false;
 export function activate(context: vscode.ExtensionContext) {
   // Prevent duplicate activation
   if (isActivated) {
-    console.log('Mocha Test Lens extension already activated, skipping...');
     return;
   }
   isActivated = true;
 
-  // Create output channel for debugging
+  // Create output channel for debugging (but don't show it automatically)
   const outputChannel = vscode.window.createOutputChannel('Mocha Test Lens');
-  outputChannel.appendLine('Mocha Test Lens extension is activating...');
-
-  console.log('Mocha Test Lens extension is now active');
 
   // Initialize test runner
   testRunner = new TestRunner();
 
   // Register CodeLens provider for TypeScript and JavaScript files
   const codeLensProvider = new MochaCodeLensProvider();
-  outputChannel.appendLine('Created CodeLens provider');
 
   let codeLensProviderDisposable: vscode.Disposable | undefined;
   try {
@@ -57,7 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
       ],
       codeLensProvider
     );
-    outputChannel.appendLine('Registered CodeLens provider successfully');
   } catch (error) {
     outputChannel.appendLine(`Error registering CodeLens provider: ${error}`);
     console.error('Error registering CodeLens provider:', error);
@@ -93,6 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
   const testExtensionCommand = vscode.commands.registerCommand(
     'mochaTestLens.testExtension',
     async () => {
+      outputChannel.show(); // Only show output channel when explicitly requested
       outputChannel.appendLine('Test command executed!');
       vscode.window.showInformationMessage('Mocha Test Lens is working! Check the Output panel.');
 
@@ -146,11 +141,9 @@ export function activate(context: vscode.ExtensionContext) {
     testExtensionCommand,
     configChangeDisposable,
     statusBarItem,
-    activeEditorChangeDisposable
+    activeEditorChangeDisposable,
+    outputChannel // Dispose output channel when extension deactivates
   );
-
-  outputChannel.appendLine('Mocha Test Lens extension activated successfully');
-  outputChannel.appendLine('Open a test file to see CodeLens buttons above your tests');
 }
 
 export function deactivate() {
