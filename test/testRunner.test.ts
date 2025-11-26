@@ -175,7 +175,7 @@ describe('TestRunner', () => {
             assert.ok(command.includes('DEBUG="true"'))
         })
 
-        it('should include transpiler arguments when configured', async () => {
+        it('should run mocha directly (transpiler handled by Mocha config)', async () => {
             getConfigurationStub.returns(
                 createMockConfig({
                     env: {},
@@ -195,8 +195,9 @@ describe('TestRunner', () => {
             await runner.runTest(uri, testBlock)
 
             const command = terminalSendTextStub.firstCall.args[0]
-            assert.ok(command.includes('--transpiler'))
-            assert.ok(command.includes('sucrase/ts-node-plugin'))
+            // Command should run mocha directly - Mocha config handles transpiler
+            assert.ok(command.includes('mocha'), 'Should include mocha')
+            assert.ok(command.includes('/workspace/test/myclass.test.ts'), 'Should include test file')
         })
 
         it('should reuse existing terminal with same name', async () => {
@@ -379,7 +380,7 @@ describe('TestRunner', () => {
     })
 
     describe('command building', () => {
-        it('should include transpiler and mocha paths for TypeScript files', async () => {
+        it('should run mocha directly for TypeScript files', async () => {
             const uri = Uri.file('/workspace/test/myclass.test.ts')
             const testBlock = createTestBlock()
 
@@ -393,15 +394,12 @@ describe('TestRunner', () => {
             assert.ok(terminalSendTextStub.called, 'Command should be sent')
             const command = terminalSendTextStub.firstCall.args[0]
             assert.ok(command, 'Command should exist')
-            // Should include tsx (default transpiler) and mocha
-            assert.ok(
-                command.includes('tsx') || command.includes('ts-node'),
-                'Should include transpiler'
-            )
+            // Should run mocha directly - Mocha config handles transpiler setup
             assert.ok(command.includes('mocha'), 'Should include mocha')
+            assert.ok(command.includes('/workspace/test/myclass.test.ts'), 'Should include test file')
         })
 
-        it('should use tsx as default transpiler', async () => {
+        it('should run mocha directly (Mocha config handles transpiler)', async () => {
             const uri = Uri.file('/workspace/test/myclass.test.ts')
             const testBlock = createTestBlock()
 
@@ -412,10 +410,14 @@ describe('TestRunner', () => {
             await runner.runTest(uri, testBlock)
 
             const command = terminalSendTextStub.firstCall.args[0]
-            assert.ok(command.includes('tsx'), 'Should use tsx by default')
+            // Command should run mocha directly - transpiler setup is handled by Mocha config files
+            assert.ok(command.includes('mocha'), 'Should run mocha')
+            // Should not include transpiler in command (handled by Mocha config)
+            assert.ok(!command.includes('tsx'), 'Should not include tsx in command')
+            assert.ok(!command.includes('ts-node'), 'Should not include ts-node in command')
         })
 
-        it('should support ts-node transpiler', async () => {
+        it('should run mocha directly regardless of transpiler config', async () => {
             getConfigurationStub.returns(
                 createMockConfig({
                     env: {},
@@ -439,13 +441,11 @@ describe('TestRunner', () => {
             await runner.runTest(uri, testBlock)
 
             const command = terminalSendTextStub.firstCall.args[0]
-            assert.ok(
-                command.includes('ts-node'),
-                'Should use ts-node when configured'
-            )
+            // Should run mocha directly - Mocha config handles transpiler
+            assert.ok(command.includes('mocha'), 'Should run mocha')
         })
 
-        it('should skip transpiler for JavaScript files', async () => {
+        it('should run mocha directly for JavaScript files', async () => {
             const uri = Uri.file('/workspace/test/myclass.test.js')
             const testBlock = createTestBlock()
 
@@ -456,50 +456,8 @@ describe('TestRunner', () => {
             await runner.runTest(uri, testBlock)
 
             const command = terminalSendTextStub.firstCall.args[0]
-            assert.ok(
-                !command.includes('tsx'),
-                'Should not include tsx for .js files'
-            )
-            assert.ok(
-                !command.includes('ts-node'),
-                'Should not include ts-node for .js files'
-            )
-            assert.ok(command.includes('mocha'), 'Should still include mocha')
-        })
-
-        it('should skip transpiler when set to none', async () => {
-            getConfigurationStub.returns(
-                createMockConfig({
-                    env: {},
-                    nodePath: '',
-                    transpiler: 'none',
-                    transpilerArgs: [],
-                    workspaceRoot: '/workspace',
-                })
-            )
-
-            runner.dispose()
-            runner = new TestRunner()
-
-            const uri = Uri.file('/workspace/test/myclass.test.ts')
-            const testBlock = createTestBlock()
-
-            // Reset stubs
-            terminalSendTextStub.resetHistory()
-            terminalShowStub.resetHistory()
-
-            await runner.runTest(uri, testBlock)
-
-            const command = terminalSendTextStub.firstCall.args[0]
-            assert.ok(
-                !command.includes('tsx'),
-                'Should not include tsx when transpiler is none'
-            )
-            assert.ok(
-                !command.includes('ts-node'),
-                'Should not include ts-node when transpiler is none'
-            )
-            assert.ok(command.includes('mocha'), 'Should still include mocha')
+            assert.ok(command.includes('mocha'), 'Should include mocha')
+            assert.ok(command.includes('/workspace/test/myclass.test.js'), 'Should include test file')
         })
 
         it('should quote file paths with spaces', async () => {

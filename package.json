@@ -72,23 +72,6 @@
                     "description": "Path to the node binary. Leave empty to auto-detect using VS Code's node resolution (recommended).",
                     "markdownDescription": "Path to the node binary. Leave empty to auto-detect using VS Code's node resolution (recommended).\n\nWhen empty, the extension will use VS Code's built-in node detection, which typically uses the node from your system PATH or the one VS Code is running with.\n\nExamples:\n- `/usr/bin/node` - System node\n- `/nix/store/.../bin/node` - Nix-managed node\n- `.nix-bin-stubs/node` - Nix stub in workspace"
                 },
-                "mochaTestLens.transpiler": {
-                    "type": "string",
-                    "enum": [
-                        "tsx",
-                        "ts-node",
-                        "none"
-                    ],
-                    "default": "tsx",
-                    "description": "TypeScript transpiler to use. Options: 'tsx' (default, faster), 'ts-node' (traditional), or 'none' (for JavaScript only).",
-                    "markdownDescription": "TypeScript transpiler to use.\n\n- `tsx`: Fast TypeScript execution (default)\n- `ts-node`: Traditional TypeScript execution\n- `none`: No transpiler (for JavaScript projects only)"
-                },
-                "mochaTestLens.transpilerArgs": {
-                    "type": "array",
-                    "default": [],
-                    "description": "Arguments to pass to the transpiler when running TypeScript tests. Example for ts-node: [\"--transpiler\", \"sucrase/ts-node-plugin\"]",
-                    "markdownDescription": "Arguments to pass to the transpiler when running TypeScript tests.\n\nExample for ts-node:\n```json\n[\"--transpiler\", \"sucrase/ts-node-plugin\"]\n```\n\nExample for tsx:\n```json\n[\"--no-warnings\"]\n```"
-                },
                 "mochaTestLens.workspaceRoot": {
                     "type": "string",
                     "default": "",
@@ -104,8 +87,8 @@
         "prepublishOnly": "npm run test && npm run lint && npm run prettier:check && npm audit --audit-level=moderate",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "test": "mocha --require tsx --require ./test/setup.ts 'test/**/*.test.ts'",
-        "test:watch": "mocha --require tsx --require ./test/setup.ts --watch --watch-extensions ts 'test/**/*.test.ts'",
+        "test": "mocha",
+        "test:watch": "mocha --watch --watch-extensions ts",
         "lint": "eslint src --ext ts",
         "lint:fix": "eslint src --ext ts --fix",
         "prettier:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",

@@ -92,44 +92,17 @@ export class TestRunner {
                 return
             }
 
-            // Determine transpiler and build debug args
-            const transpiler = config.get('transpiler', 'tsx') as string
-            const transpilerArgs = config.get(
-                'transpilerArgs',
-                []
-            ) as string[]
-            const isTypeScriptFile =
-                filePath.endsWith('.ts') || filePath.endsWith('.tsx')
-
             // Build debug program and args
-            let debugProgram: string
-            let debugArgs: string[]
+            // Let Mocha handle configuration via .mocharc.js, .mocharc.json, or package.json
+            // Mocha will automatically load these config files and apply settings like:
+            // - require modules (tsx, ts-node, setup files, etc.)
+            // - other mocha options
+            const debugProgram = `\${workspaceFolder}/node_modules/.bin/mocha`
+            const debugArgs: string[] = []
 
-            if (transpiler !== 'none' && isTypeScriptFile) {
-                const transpilerBinName =
-                    transpiler === 'ts-node' ? 'ts-node' : 'tsx'
-                debugProgram = `\${workspaceFolder}/node_modules/.bin/mocha`
-                debugArgs = [
-                    '--require',
-                    transpilerBinName,
-                    '--require',
-                    `\${workspaceFolder}/test/setup.ts`,
-                    ...transpilerArgs,
-                    filePath,
-                    '--grep',
-                    grepPattern,
-                ]
-            } else {
-                // For JavaScript or 'none' transpiler, run mocha directly
-                debugProgram = `\${workspaceFolder}/node_modules/.bin/mocha`
-                debugArgs = [
-                    '--require',
-                    `\${workspaceFolder}/test/setup.ts`,
-                    filePath,
-                    '--grep',
-                    grepPattern,
-                ]
-            }
+            // Add test file and grep pattern
+            // Mocha config files will handle transpiler requirements, setup files, etc.
+            debugArgs.push(filePath, '--grep', grepPattern)
 
             // Create debug configuration
             const debugConfig: vscode.DebugConfiguration = {
@@ -277,11 +250,6 @@ export class TestRunner {
         grepPattern: string,
         config: vscode.WorkspaceConfiguration
     ): string {
-        const transpiler = config.get('transpiler', 'tsx') as string
-        const transpilerArgs = config.get(
-            'transpilerArgs',
-            []
-        ) as string[]
         const env = config.get('env', {}) as Record<string, string>
 
         // Get workspace root - use config or auto-detect
@@ -312,33 +280,17 @@ export class TestRunner {
             ? path.join(workspaceRoot, 'node_modules/.bin/mocha')
             : 'node_modules/.bin/mocha'
 
-        // Add transpiler if needed (skip for 'none' or JavaScript files)
-        const isTypeScriptFile =
-            filePath.endsWith('.ts') || filePath.endsWith('.tsx')
-        if (transpiler !== 'none' && isTypeScriptFile) {
-            const transpilerBinName =
-                transpiler === 'ts-node' ? 'ts-node' : 'tsx'
-            const transpilerPath = workspaceRoot
-                ? path.join(
-                      workspaceRoot,
-                      `node_modules/.bin/${transpilerBinName}`
-                  )
-                : `node_modules/.bin/${transpilerBinName}`
-
-            command += `${transpilerPath} `
-            if (transpilerArgs.length > 0) {
-                command += transpilerArgs.join(' ') + ' '
-            }
-        }
-
-        // Add mocha
+        // Run mocha directly - it will use .mocharc.json or package.json mocha config
+        // Mocha config files handle transpiler setup, require modules, etc.
         command += `${mochaPath} `
 
         // Add the test file
         command += `"${filePath}" `
 
-        // Add grep pattern
-        command += `--grep "${grepPattern}"`
+        // Add grep pattern if provided
+        if (grepPattern) {
+            command += `--grep "${grepPattern}"`
+        }
 
         return command
     }

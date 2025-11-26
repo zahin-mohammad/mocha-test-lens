@@ -10,8 +10,9 @@ Run individual Mocha tests directly from your code editor with CodeLens buttons,
 
 - **CodeLens Integration**: Shows "Run Test" and "Debug Test" buttons above each `describe` and `it` block
 - **Precise Test Execution**: Runs specific tests using Mocha's `--grep` pattern matching
+- **Mocha Config Integration**: Automatically uses your Mocha configuration files (`.mocharc.json`, `.mocharc.js`, etc.) for transpiler setup, require modules, and other options
 - **Nix Environment Support**: Automatically detects and uses nix-managed Node.js installations
-- **TypeScript Support**: Works with tsx (default, faster) or ts-node transpilers, fully configurable
+- **TypeScript Support**: Works seamlessly with TypeScript projects via Mocha's `require` configuration
 - **Test File Detection**: Automatically activates for:
     - All TypeScript/JavaScript files in `test/`, `spec/`, or `tests/` directories
     - Files with `.test.ts`, `.spec.ts`, `.test.js`, or `.spec.js` extensions anywhere in the project
@@ -95,22 +96,18 @@ Configure the extension in your VS Code settings:
     // Path to node binary (leave empty for auto-detection)
     "mochaTestLens.nodePath": "",
 
-    // TypeScript transpiler to use: "tsx" (default, faster), "ts-node", or "none"
-    "mochaTestLens.transpiler": "tsx",
-
-    // Arguments for the transpiler (if using TypeScript)
-    "mochaTestLens.transpilerArgs": ["--no-warnings"],
-
     // Custom workspace root (auto-detected by default)
     "mochaTestLens.workspaceRoot": "",
 
-    // VS Code task to run before debugging (optional)
+    // VS Code task to run before debugging (optional, for nix environments)
     "mochaTestLens.debugPreLaunchTask": "nixenv",
 
-    // Environment file to load when debugging (optional)
+    // Environment file to load when debugging (optional, for nix environments)
     "mochaTestLens.debugEnvFile": "${workspaceFolder}/.vscode/nixenv"
 }
 ```
+
+**Note**: Transpiler configuration (tsx, ts-node, etc.) is now handled by Mocha configuration files (`.mocharc.json`, `.mocharc.js`, etc.). See the [Mocha Configuration Files](#mocha-configuration-files) section below.
 
 ### Configuration Options
 
@@ -118,8 +115,6 @@ Configure the extension in your VS Code settings:
 | ------------------------------ | ------ | ------- | ------------------------------------------------------------------ |
 | `mochaTestLens.env`            | object | `{}`    | Environment variables to set when running tests                    |
 | `mochaTestLens.nodePath`       | string | `""`    | Path to node binary (auto-detected if empty)                       |
-| `mochaTestLens.transpiler`     | string | `"tsx"` | TypeScript transpiler: `"tsx"` (default), `"ts-node"`, or `"none"` |
-| `mochaTestLens.transpilerArgs` | array  | `[]`    | Arguments to pass to the transpiler                                |
 | `mochaTestLens.workspaceRoot`  | string | `""`    | Workspace root directory (auto-detected if empty)                  |
 | `mochaTestLens.debugPreLaunchTask` | string | `""`    | VS Code task name to run before debugging (e.g., `"nixenv"`)       |
 | `mochaTestLens.debugEnvFile`   | string | `""`    | Path to environment file to load when debugging                   |
@@ -153,14 +148,46 @@ The extension:
 2. Builds precise grep patterns for each test
 3. Executes Mocha with the `--grep` flag to run specific tests
 4. Supports nested describe blocks and maintains test hierarchy
+5. **Defers to Mocha configuration files** for transpiler setup, require modules, and other Mocha options
+
+### Mocha Configuration Files
+
+The extension respects Mocha's configuration files (`.mocharc.js`, `.mocharc.json`, `.mocharc.yaml`, or `package.json` mocha property). This means:
+
+- **Transpiler setup**: Configure `require` modules (e.g., `tsx`, `ts-node`) in your Mocha config
+- **Setup files**: Add setup files via `require` in your Mocha config (e.g., `test/setup.ts`)
+- **Other options**: All Mocha options can be configured in these files
+
+Example `.mocharc.json`:
+
+```json
+{
+  "require": ["tsx", "test/setup.ts"],
+  "timeout": 5000,
+  "reporter": "spec"
+}
+```
+
+Example `package.json`:
+
+```json
+{
+  "mocha": {
+    "require": ["tsx", "test/setup.ts"]
+  }
+}
+```
+
+Both when running tests in the terminal and when debugging, the extension runs Mocha directly and lets it load your configuration files automatically. This ensures consistency with how you run tests from the command line.
 
 Example command generated:
 
 ```bash
-node node_modules/.bin/ts-node --transpiler sucrase/ts-node-plugin \
-  node_modules/.bin/mocha "path/to/test.ts" \
+node node_modules/.bin/mocha "path/to/test.ts" \
   --grep "^Parent Describe Child Describe specific test$"
 ```
+
+Mocha will automatically load your `.mocharc.json` (or other config file) and apply the `require` modules, setup files, and other options you've configured there.
 
 ## Troubleshooting
 
@@ -183,8 +210,10 @@ If you see an error like "command 'mochaTestLens.runTest' already exists":
 ### Tests Not Running
 
 - Verify `mocha` is installed in your project
-- For TypeScript projects, ensure your configured transpiler (`tsx` or `ts-node`) is installed
-- Check that your `node_modules/.bin/` contains the required binaries (`mocha` and your transpiler)
+- **Configure transpiler in Mocha config**: For TypeScript projects, ensure your transpiler (`tsx` or `ts-node`) is configured in your Mocha config file (`.mocharc.json`, `.mocharc.js`, etc.) via the `require` option
+- **Setup files not loading**: Ensure your setup files are configured in your Mocha config file via the `require` option (e.g., `"require": ["tsx", "test/setup.ts"]`)
+- Check that your `node_modules/.bin/` contains the required binaries (`mocha` and your transpiler if using TypeScript)
+- The extension runs `mocha` directly - all transpiler and setup configuration should be in your Mocha config files
 
 ### Debug Configuration Issues
 
@@ -200,7 +229,7 @@ If you see an error like "command 'mochaTestLens.runTest' already exists":
 
 - VS Code 1.74.0 or higher
 - Mocha installed in your project
-- For TypeScript: tsx (default, recommended) or ts-node transpiler
+- For TypeScript projects: Configure your transpiler (tsx or ts-node) in your Mocha configuration file (`.mocharc.json`, `.mocharc.js`, etc.) via the `require` option
 
 ## Contributing
 
