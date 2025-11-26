@@ -26,7 +26,20 @@ export function activate(context: vscode.ExtensionContext) {
   try {
     codeLensProviderDisposable = vscode.languages.registerCodeLensProvider(
       [
-        // All TypeScript/JavaScript files in test directories
+        // Files directly in test directories (no subdirectory)
+        { language: 'typescript', pattern: '**/test/*.ts' },
+        { language: 'typescript', pattern: '**/spec/*.ts' },
+        { language: 'typescript', pattern: '**/tests/*.ts' },
+        { language: 'typescript', pattern: '**/test/*.tsx' },
+        { language: 'typescript', pattern: '**/spec/*.tsx' },
+        { language: 'typescript', pattern: '**/tests/*.tsx' },
+        { language: 'javascript', pattern: '**/test/*.js' },
+        { language: 'javascript', pattern: '**/spec/*.js' },
+        { language: 'javascript', pattern: '**/tests/*.js' },
+        { language: 'javascript', pattern: '**/test/*.jsx' },
+        { language: 'javascript', pattern: '**/spec/*.jsx' },
+        { language: 'javascript', pattern: '**/tests/*.jsx' },
+        // Files in subdirectories of test directories
         { language: 'typescript', pattern: '**/test/**/*.ts' },
         { language: 'typescript', pattern: '**/spec/**/*.ts' },
         { language: 'typescript', pattern: '**/tests/**/*.ts' },
@@ -39,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
         { language: 'javascript', pattern: '**/test/**/*.jsx' },
         { language: 'javascript', pattern: '**/spec/**/*.jsx' },
         { language: 'javascript', pattern: '**/tests/**/*.jsx' },
-        // Also keep specific patterns for test files that might be outside test directories
+        // Test files outside test directories (by naming convention)
         { language: 'typescript', pattern: '**/*.test.ts' },
         { language: 'typescript', pattern: '**/*.spec.ts' },
         { language: 'typescript', pattern: '**/*IT.test.ts' },
