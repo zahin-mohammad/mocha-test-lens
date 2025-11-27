@@ -10,6 +10,14 @@ export const fileSystem = {
 }
 
 /**
+ * Result of node path resolution
+ */
+export interface NodePathResult {
+    path: string
+    codePath: string // Description of how the path was determined
+}
+
+/**
  * Handles execution and debugging of Mocha tests
  */
 export class TestRunner {
@@ -178,14 +186,18 @@ export class TestRunner {
      */
     /**
      * Get the node binary path, using VS Code's detection or custom path
+     * Returns both the path and a description of how it was determined
      */
     private getNodePath(
         config: vscode.WorkspaceConfiguration,
         workspaceRoot?: string
-    ): string {
+    ): NodePathResult {
         const customNodePath = config.get('nodePath', '') as string
         if (customNodePath) {
-            return customNodePath
+            return {
+                path: customNodePath,
+                codePath: 'Custom nodePath configuration',
+            }
         }
 
         // Try to derive node path from NODE_PATH (for nix environments)
@@ -195,7 +207,10 @@ export class TestRunner {
                 '/bin/node'
             )
             if (fileSystem.existsSync(nodeBinPath)) {
-                return nodeBinPath
+                return {
+                    path: nodeBinPath,
+                    codePath: `Derived from NODE_PATH environment variable: ${process.env.NODE_PATH}`,
+                }
             }
         }
 
@@ -213,7 +228,10 @@ export class TestRunner {
                     'node'
                 )
                 if (fileSystem.existsSync(nixStubPath)) {
-                    return nixStubPath
+                    return {
+                        path: nixStubPath,
+                        codePath: `Found .nix-bin-stubs/node in: ${currentDir}`,
+                    }
                 }
                 const parentDir = path.dirname(currentDir)
                 if (parentDir === currentDir) {
@@ -244,7 +262,10 @@ export class TestRunner {
                         'node'
                     )
                     if (fileSystem.existsSync(nvmVersionPath)) {
-                        return nvmVersionPath
+                        return {
+                            path: nvmVersionPath,
+                            codePath: `Found via .nvmrc file (version: ${nodeVersion})`,
+                        }
                     }
                 } catch (error) {
                     // Ignore errors reading .nvmrc
@@ -257,7 +278,10 @@ export class TestRunner {
         if (nvmBin) {
             const nvmNodePath = path.join(nvmBin, 'node')
             if (fileSystem.existsSync(nvmNodePath)) {
-                return nvmNodePath
+                return {
+                    path: nvmNodePath,
+                    codePath: `Found via NVM_BIN environment variable: ${nvmBin}`,
+                }
             }
         }
 
@@ -265,11 +289,25 @@ export class TestRunner {
         const nvmDir = process.env.NVM_DIR || path.join(os.homedir(), '.nvm')
         const nvmCurrentPath = path.join(nvmDir, 'current', 'bin', 'node')
         if (fileSystem.existsSync(nvmCurrentPath)) {
-            return nvmCurrentPath
+            return {
+                path: nvmCurrentPath,
+                codePath: `Found via NVM current symlink: ${nvmCurrentPath}`,
+            }
         }
 
         // Default: use 'node' from system PATH
-        return 'node'
+        return {
+            path: 'node',
+            codePath: 'Using default: node from system PATH',
+        }
+    }
+
+    /**
+     * Public method to get node path information (for debugging/diagnostics)
+     */
+    public getNodePathInfo(workspaceRoot?: string): NodePathResult {
+        const config = vscode.workspace.getConfiguration('mochaTestLens')
+        return this.getNodePath(config, workspaceRoot)
     }
 
     private buildTestCommand(
@@ -299,8 +337,8 @@ export class TestRunner {
         }
 
         // Get node path (auto-detects or uses custom)
-        const nodeBinPath = this.getNodePath(config, workspaceRoot)
-        command += `${nodeBinPath} `
+        const nodePathResult = this.getNodePath(config, workspaceRoot)
+        command += `${nodePathResult.path} `
 
         // Determine paths relative to workspace root
         const mochaPath = workspaceRoot

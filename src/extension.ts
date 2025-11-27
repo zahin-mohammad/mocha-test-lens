@@ -196,6 +196,15 @@ export function activate(context: vscode.ExtensionContext) {
                     `Is test file: ${editor.document.fileName.includes('.test.') || editor.document.fileName.includes('.spec.')}`
                 )
             }
+
+            // Print node path information
+            const workspaceRoot =
+                vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+            const nodePathInfo = testRunner.getNodePathInfo(workspaceRoot)
+            outputChannel.appendLine('')
+            outputChannel.appendLine('Node Path Information:')
+            outputChannel.appendLine(`  Path: ${nodePathInfo.path}`)
+            outputChannel.appendLine(`  Code Path: ${nodePathInfo.codePath}`)
         }
     )
 
