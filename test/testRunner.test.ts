@@ -404,7 +404,11 @@ describe('TestRunner', () => {
 
             const command = runner.getTestCommand(uri, testBlock)
 
-            assert.strictEqual(command, null, 'Should return null for non-existent file')
+            assert.strictEqual(
+                command,
+                null,
+                'Should return null for non-existent file'
+            )
         })
 
         it('should use custom node path when configured', () => {

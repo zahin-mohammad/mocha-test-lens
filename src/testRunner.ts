@@ -33,7 +33,10 @@ export class TestRunner {
     /**
      * Get the test command string without executing it
      */
-    public getTestCommand(uri: vscode.Uri, testBlock: TestBlock): string | null {
+    public getTestCommand(
+        uri: vscode.Uri,
+        testBlock: TestBlock
+    ): string | null {
         try {
             const config = vscode.workspace.getConfiguration('mochaTestLens')
             const filePath = uri.fsPath
