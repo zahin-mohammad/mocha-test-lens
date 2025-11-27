@@ -68,7 +68,7 @@ describe('MochaCodeLensProvider', () => {
     })
 
     describe('provideCodeLenses', () => {
-        it('should provide Run and Debug lenses for each test block', () => {
+        it('should provide Run, Debug, and Copy Command lenses for each test block', () => {
             const document = createMockDocument(
                 `describe('MyClass', () => {
   it('should work', () => {});
@@ -77,8 +77,8 @@ describe('MochaCodeLensProvider', () => {
             )
             const lenses = getCodeLenses(document)
 
-            // 2 blocks (describe + it) * 2 lenses each (Run + Debug) = 4 lenses
-            assert.strictEqual(lenses.length, 4)
+            // 2 blocks (describe + it) * 3 lenses each (Run + Debug + Copy) = 6 lenses
+            assert.strictEqual(lenses.length, 6)
         })
 
         it('should create Run Test command with correct arguments', () => {
@@ -116,6 +116,43 @@ describe('MochaCodeLensProvider', () => {
             assert.strictEqual(debugLens.command?.arguments?.length, 2)
         })
 
+        it('should create Copy Command code lens with correct arguments', () => {
+            const document = createMockDocument(
+                `describe('MyClass', () => {});`,
+                '/project/test/myclass.test.ts'
+            )
+            const lenses = getCodeLenses(document)
+            const copyLens = lenses.find(
+                (l) => l.command?.command === 'mochaTestLens.copyTestCommand'
+            )
+
+            assert.ok(copyLens)
+            assert.strictEqual(copyLens.command?.title, '$(copy) Copy Command')
+            assert.ok(copyLens.command?.arguments)
+            assert.strictEqual(copyLens.command?.arguments?.length, 2)
+        })
+
+        it('should include tooltip with full test name for Copy Command', () => {
+            const document = createMockDocument(
+                `describe('MyClass', () => {
+  it('should work', () => {});
+});`,
+                '/project/test/myclass.test.ts'
+            )
+            const lenses = getCodeLenses(document)
+            const itCopyLens = lenses.find(
+                (l) =>
+                    l.command?.command === 'mochaTestLens.copyTestCommand' &&
+                    l.command?.tooltip?.includes('should work')
+            )
+
+            assert.ok(itCopyLens)
+            assert.strictEqual(
+                itCopyLens.command?.tooltip,
+                'Copy command: MyClass should work'
+            )
+        })
+
         it('should set correct range for lenses', () => {
             const document = createMockDocument(
                 `describe('First', () => {});
@@ -124,13 +161,15 @@ describe('Second', () => {});`,
             )
             const lenses = getCodeLenses(document)
 
-            // First describe (line 0)
+            // First describe (line 0) - should have 3 lenses (Run, Debug, Copy)
             assert.strictEqual(lenses[0].range.start.line, 0)
             assert.strictEqual(lenses[1].range.start.line, 0)
+            assert.strictEqual(lenses[2].range.start.line, 0)
 
-            // Second describe (line 1)
-            assert.strictEqual(lenses[2].range.start.line, 1)
+            // Second describe (line 1) - should have 3 lenses (Run, Debug, Copy)
             assert.strictEqual(lenses[3].range.start.line, 1)
+            assert.strictEqual(lenses[4].range.start.line, 1)
+            assert.strictEqual(lenses[5].range.start.line, 1)
         })
 
         it('should include tooltip with full test name', () => {
@@ -178,8 +217,8 @@ describe('Second', () => {});`,
             )
             const lenses = getCodeLenses(document)
 
-            // 4 blocks * 2 lenses = 8 total
-            assert.strictEqual(lenses.length, 8)
+            // 4 blocks * 3 lenses (Run + Debug + Copy) = 12 total
+            assert.strictEqual(lenses.length, 12)
         })
     })
 

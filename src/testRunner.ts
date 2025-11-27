@@ -23,6 +23,28 @@ export class TestRunner {
     }
 
     /**
+     * Get the test command string without executing it
+     */
+    public getTestCommand(uri: vscode.Uri, testBlock: TestBlock): string | null {
+        try {
+            const config = vscode.workspace.getConfiguration('mochaTestLens')
+            const filePath = uri.fsPath
+
+            // Verify test file exists
+            if (!fileSystem.existsSync(filePath)) {
+                return null
+            }
+
+            const grepPattern = this.testParser.buildGrepPattern(testBlock)
+
+            // Build the command
+            return this.buildTestCommand(filePath, grepPattern, config)
+        } catch (error) {
+            return null
+        }
+    }
+
+    /**
      * Run a test in the terminal
      */
     public async runTest(uri: vscode.Uri, testBlock: TestBlock): Promise<void> {

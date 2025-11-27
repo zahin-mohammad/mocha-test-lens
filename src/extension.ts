@@ -119,6 +119,34 @@ export function activate(context: vscode.ExtensionContext) {
         }
     )
 
+    const copyTestCommand = vscode.commands.registerCommand(
+        'mochaTestLens.copyTestCommand',
+        async (uri: vscode.Uri, testBlock: TestBlock) => {
+            try {
+                const command = testRunner.getTestCommand(uri, testBlock)
+                if (command) {
+                    await vscode.env.clipboard.writeText(command)
+                    vscode.window.showInformationMessage(
+                        'Test command copied to clipboard'
+                    )
+                } else {
+                    vscode.window.showErrorMessage(
+                        'Failed to generate test command'
+                    )
+                }
+            } catch (error) {
+                const errorMessage =
+                    error instanceof Error ? error.message : String(error)
+                outputChannel.appendLine(
+                    `Error in copyTestCommand: ${errorMessage}`
+                )
+                vscode.window.showErrorMessage(
+                    `Failed to copy test command: ${errorMessage}`
+                )
+            }
+        }
+    )
+
     // Register context menu command to run all tests in file
     const runAllTestsCommand = vscode.commands.registerCommand(
         'mochaTestLens.runAllTests',
@@ -220,6 +248,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         runTestCommand,
         debugTestCommand,
+        copyTestCommand,
         runAllTestsCommand,
         testExtensionCommand,
         configChangeDisposable,

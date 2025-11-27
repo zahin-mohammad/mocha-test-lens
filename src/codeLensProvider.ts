@@ -65,6 +65,16 @@ export class MochaCodeLensProvider implements vscode.CodeLensProvider {
                 }
 
                 codeLenses.push(new vscode.CodeLens(range, debugCommand))
+
+                // Create "Copy Test Command" code lens
+                const copyCommand: vscode.Command = {
+                    title: '$(copy) Copy Command',
+                    command: 'mochaTestLens.copyTestCommand',
+                    arguments: [document.uri, testBlock],
+                    tooltip: `Copy command: ${testBlock.fullName}`,
+                }
+
+                codeLenses.push(new vscode.CodeLens(range, copyCommand))
             }
 
             return codeLenses

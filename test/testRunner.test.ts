@@ -103,7 +103,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command.includes('/workspace/test/myclass.test.ts'))
         })
 
@@ -147,7 +148,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command.includes('/custom/bin/node'))
         })
 
@@ -170,7 +172,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command.includes('NODE_ENV="test"'))
             assert.ok(command.includes('DEBUG="true"'))
         })
@@ -194,7 +197,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             // Command should run mocha directly - Mocha config handles transpiler
             assert.ok(command.includes('mocha'), 'Should include mocha')
             assert.ok(
@@ -355,6 +359,135 @@ describe('TestRunner', () => {
         })
     })
 
+    describe('getTestCommand', () => {
+        it('should return test command string', () => {
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(typeof command === 'string', 'Command should be a string')
+            assert.ok(command.includes('/workspace/test/myclass.test.ts'))
+        })
+
+        it('should include grep pattern for the test', () => {
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock({
+                name: 'should work',
+                fullName: 'MyClass should work',
+            })
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(
+                command.includes('--grep'),
+                `Command should include --grep: ${command}`
+            )
+            assert.ok(
+                command.includes('should work'),
+                `Command should include test name: ${command}`
+            )
+        })
+
+        it('should return null when file does not exist', () => {
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            sandbox.stub(fileSystem, 'existsSync').returns(false)
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/workspace/test/nonexistent.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.strictEqual(command, null, 'Should return null for non-existent file')
+        })
+
+        it('should use custom node path when configured', () => {
+            getConfigurationStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: '/custom/bin/node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/workspace',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(command.includes('/custom/bin/node'))
+        })
+
+        it('should include environment variables when configured', () => {
+            getConfigurationStub.returns(
+                createMockConfig({
+                    env: { NODE_ENV: 'test', DEBUG: 'true' },
+                    nodePath: '',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/workspace',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(command.includes('NODE_ENV="test"'))
+            assert.ok(command.includes('DEBUG="true"'))
+        })
+
+        it('should include mocha path', () => {
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(command.includes('mocha'), 'Should include mocha')
+        })
+
+        it('should quote file paths with spaces', () => {
+            const uri = Uri.file('/workspace/test/my class.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(command.includes('"/workspace/test/my class.test.ts"'))
+        })
+
+        it('should quote grep pattern', () => {
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock({
+                name: 'should handle special chars',
+                fullName: 'MyClass should handle special chars',
+            })
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(command.includes('--grep "'))
+        })
+    })
+
     describe('runAllTests', () => {
         it('should run all tests in a file without grep pattern', async () => {
             const uri = Uri.file('/workspace/test/myclass.test.ts')
@@ -367,7 +500,8 @@ describe('TestRunner', () => {
 
             assert.ok(terminalShowStub.called, 'Terminal should be shown')
             assert.ok(terminalSendTextStub.called, 'Command should be sent')
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command, 'Command should exist')
             assert.ok(command.includes('/workspace/test/myclass.test.ts'))
             // Should not have grep with empty pattern
@@ -395,7 +529,8 @@ describe('TestRunner', () => {
 
             assert.ok(terminalShowStub.called, 'Terminal should be shown')
             assert.ok(terminalSendTextStub.called, 'Command should be sent')
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command, 'Command should exist')
             // Should run mocha directly - Mocha config handles transpiler setup
             assert.ok(command.includes('mocha'), 'Should include mocha')
@@ -415,7 +550,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             // Command should run mocha directly - transpiler setup is handled by Mocha config files
             assert.ok(command.includes('mocha'), 'Should run mocha')
             // Should not include transpiler in command (handled by Mocha config)
@@ -452,7 +588,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             // Should run mocha directly - Mocha config handles transpiler
             assert.ok(command.includes('mocha'), 'Should run mocha')
         })
@@ -467,7 +604,8 @@ describe('TestRunner', () => {
 
             await runner.runTest(uri, testBlock)
 
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command.includes('mocha'), 'Should include mocha')
             assert.ok(
                 command.includes('/workspace/test/myclass.test.js'),
@@ -487,7 +625,8 @@ describe('TestRunner', () => {
 
             assert.ok(terminalShowStub.called, 'Terminal should be shown')
             assert.ok(terminalSendTextStub.called, 'Command should be sent')
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command, 'Command should exist')
             assert.ok(command.includes('"/workspace/test/my class.test.ts"'))
         })
@@ -507,7 +646,8 @@ describe('TestRunner', () => {
 
             assert.ok(terminalShowStub.called, 'Terminal should be shown')
             assert.ok(terminalSendTextStub.called, 'Command should be sent')
-            const command = terminalSendTextStub.firstCall.args[0]
+            // First call is '\n', second call is the command
+            const command = terminalSendTextStub.lastCall.args[0]
             assert.ok(command, 'Command should exist')
             assert.ok(command.includes('--grep "'))
         })

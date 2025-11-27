@@ -389,6 +389,13 @@ export const commands = {
     }),
 }
 
+export const env = {
+    clipboard: {
+        writeText: async (_text: string): Promise<void> => {},
+        readText: async (): Promise<string> => '',
+    },
+}
+
 // Helper function to create a mock TextDocument
 export function createMockDocument(
     content: string,
