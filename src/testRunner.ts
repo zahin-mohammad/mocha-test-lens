@@ -51,7 +51,8 @@ export class TestRunner {
             this.outputChannel.appendLine(`Running test: ${testBlock.fullName}`)
             this.outputChannel.appendLine(`Command: ${command}`)
 
-            // Execute the command
+            // Execute the command (with empty line first for better output formatting)
+            terminal.sendText('\n')
             terminal.sendText(command)
         } catch (error) {
             const errorMessage =
@@ -357,7 +358,8 @@ export class TestRunner {
             this.outputChannel.appendLine(`Running all tests in: ${filePath}`)
             this.outputChannel.appendLine(`Command: ${command}`)
 
-            // Execute the command
+            // Execute the command (with empty line first for better output formatting)
+            terminal.sendText('\n')
             terminal.sendText(command)
         } catch (error) {
             const errorMessage =
