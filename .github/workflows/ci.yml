@@ -97,7 +97,9 @@ jobs:
         run: node scripts/prepare-release.js
 
       - name: Run semantic-release
+        id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: npm run semantic-release
 
