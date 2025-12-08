@@ -100,6 +100,6 @@ jobs:
         id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSCE_TOKEN: ${{ secrets.VSCE_PAT }}
         run: npm run semantic-release
 
