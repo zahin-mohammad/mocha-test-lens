@@ -1,5 +1,6 @@
 import * as assert from 'assert'
 import * as sinon from 'sinon'
+import * as path from 'path'
 import { Uri, window, workspace, debug, createMockConfig } from './mocks/vscode'
 import { TestRunner, fileSystem } from '../src/testRunner'
 import { TestBlock } from '../src/testParser'
@@ -530,24 +531,32 @@ describe('TestRunner', () => {
             // Restore and re-stub file system to simulate monorepo structure
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            // Use path.normalize for cross-platform compatibility
+            const testFilePath = path.normalize(
+                '/monorepo/packages/wallet-platform/test/myclass.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/monorepo/packages/wallet-platform/node_modules/.bin/mocha'
+            )
+            const rootMochaPath = path.normalize(
+                '/monorepo/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize('/monorepo')
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
-            existsSyncStub.callsFake((path: string) => {
+            existsSyncStub.callsFake((checkPath: string) => {
+                const normalized = path.normalize(checkPath)
                 // Test file exists
-                if (
-                    path ===
-                    '/monorepo/packages/wallet-platform/test/myclass.test.ts'
-                ) {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in package subdirectory
-                if (
-                    path ===
-                    '/monorepo/packages/wallet-platform/node_modules/.bin/mocha'
-                ) {
+                if (normalized === mochaPath) {
                     return true
                 }
                 // Mocha doesn't exist in monorepo root
-                if (path === '/monorepo/node_modules/.bin/mocha') {
+                if (normalized === rootMochaPath) {
                     return false
                 }
                 return false
@@ -560,31 +569,29 @@ describe('TestRunner', () => {
                     nodePath: '/usr/bin/node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot: '/monorepo',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file(
-                '/monorepo/packages/wallet-platform/test/myclass.test.ts'
-            )
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock()
 
             const command = runner.getTestCommand(uri, testBlock)
 
             assert.ok(command, 'Command should be returned')
             // Should use the mocha from the package subdirectory, not the workspace root
+            // Normalize the path in the command for comparison
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes(
-                    '/monorepo/packages/wallet-platform/node_modules/.bin/mocha'
-                ),
+                normalizedCommand.includes(mochaPath),
                 `Command should include mocha from package subdirectory: ${command}`
             )
             // Should NOT use the workspace root mocha path
             assert.ok(
-                !command.includes('/monorepo/node_modules/.bin/mocha'),
+                !normalizedCommand.includes(rootMochaPath),
                 `Command should not include mocha from workspace root: ${command}`
             )
         })
@@ -593,24 +600,30 @@ describe('TestRunner', () => {
             // Restore and re-stub file system
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            const testFilePath = path.normalize(
+                '/workspace/packages/app/test/unit/myclass.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/workspace/packages/app/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize('/workspace')
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
-            existsSyncStub.callsFake((path: string) => {
+            existsSyncStub.callsFake((checkPath: string) => {
+                const normalized = path.normalize(checkPath)
                 // Test file exists
-                if (
-                    path === '/workspace/packages/app/test/unit/myclass.test.ts'
-                ) {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in app directory
-                if (
-                    path === '/workspace/packages/app/node_modules/.bin/mocha'
-                ) {
+                if (normalized === mochaPath) {
                     return true
                 }
                 // Mocha doesn't exist in test or unit directories
                 if (
-                    path.includes('/test/node_modules') ||
-                    path.includes('/unit/node_modules')
+                    normalized.includes(path.normalize('/test/node_modules')) ||
+                    normalized.includes(path.normalize('/unit/node_modules'))
                 ) {
                     return false
                 }
@@ -624,25 +637,22 @@ describe('TestRunner', () => {
                     nodePath: 'node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot: '/workspace',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file(
-                '/workspace/packages/app/test/unit/myclass.test.ts'
-            )
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock()
 
             const command = runner.getTestCommand(uri, testBlock)
 
             assert.ok(command, 'Command should be returned')
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes(
-                    '/workspace/packages/app/node_modules/.bin/mocha'
-                ),
+                normalizedCommand.includes(mochaPath),
                 `Command should include mocha from app directory: ${command}`
             )
         })
@@ -651,14 +661,24 @@ describe('TestRunner', () => {
             // Restore and re-stub file system
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            const testFilePath = path.normalize(
+                '/workspace/test/myclass.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/workspace/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize('/workspace')
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
-            existsSyncStub.callsFake((path: string) => {
+            existsSyncStub.callsFake((checkPath: string) => {
+                const normalized = path.normalize(checkPath)
                 // Test file exists
-                if (path === '/workspace/test/myclass.test.ts') {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in workspace root
-                if (path === '/workspace/node_modules/.bin/mocha') {
+                if (normalized === mochaPath) {
                     return true
                 }
                 return false
@@ -671,21 +691,22 @@ describe('TestRunner', () => {
                     nodePath: 'node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot: '/workspace',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock()
 
             const command = runner.getTestCommand(uri, testBlock)
 
             assert.ok(command, 'Command should be returned')
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes('/workspace/node_modules/.bin/mocha'),
+                normalizedCommand.includes(mochaPath),
                 `Command should include mocha from workspace root: ${command}`
             )
         })
@@ -694,43 +715,49 @@ describe('TestRunner', () => {
             // This test simulates the exact scenario from the user's issue
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            const testFilePath = path.normalize(
+                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/test/api/v2/walletShares/acceptBulkWalletShares.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/node_modules/.bin/mocha'
+            )
+            const rootMochaPath = path.normalize(
+                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize(
+                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices'
+            )
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
-            existsSyncStub.callsFake((path: string) => {
+            existsSyncStub.callsFake((checkPath: string) => {
+                const normalized = path.normalize(checkPath)
                 // Test file exists
-                if (
-                    path ===
-                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/test/api/v2/walletShares/acceptBulkWalletShares.test.ts'
-                ) {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in package subdirectory (absolute path)
-                if (
-                    path ===
-                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/node_modules/.bin/mocha'
-                ) {
+                if (normalized === mochaPath) {
                     return true
                 }
                 // Mocha doesn't exist in intermediate directories
-                if (path.includes('/test/') && path.includes('node_modules')) {
-                    return false
-                }
-                if (path.includes('/api/') && path.includes('node_modules')) {
-                    return false
-                }
-                if (path.includes('/v2/') && path.includes('node_modules')) {
-                    return false
-                }
+                const testDir = path.normalize('/test/')
+                const apiDir = path.normalize('/api/')
+                const v2Dir = path.normalize('/v2/')
+                const walletSharesDir = path.normalize('/walletShares/')
+                const nodeModules = 'node_modules'
+
                 if (
-                    path.includes('/walletShares/') &&
-                    path.includes('node_modules')
+                    (normalized.includes(testDir) ||
+                        normalized.includes(apiDir) ||
+                        normalized.includes(v2Dir) ||
+                        normalized.includes(walletSharesDir)) &&
+                    normalized.includes(nodeModules)
                 ) {
                     return false
                 }
                 // Mocha doesn't exist in monorepo root
-                if (
-                    path ===
-                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/node_modules/.bin/mocha'
-                ) {
+                if (normalized === rootMochaPath) {
                     return false
                 }
                 return false
@@ -744,17 +771,14 @@ describe('TestRunner', () => {
                         '/Users/zahinmohammad/.nvm/versions/node/v20.12.0/bin/node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot:
-                        '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file(
-                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/test/api/v2/walletShares/acceptBulkWalletShares.test.ts'
-            )
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock({
                 fullName: 'v2.wallet.sharing.bulkwalletshares.accept',
             })
@@ -763,18 +787,18 @@ describe('TestRunner', () => {
 
             assert.ok(command, 'Command should be returned')
             // Should use absolute path to mocha in the package subdirectory
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes(
-                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/node_modules/.bin/mocha'
-                ),
+                normalizedCommand.includes(mochaPath),
                 `Command should include absolute path to mocha: ${command}`
             )
-            // Verify it's an absolute path (starts with /)
+            // Verify it's an absolute path (starts with / or drive letter on Windows)
             const mochaPathMatch = command.match(/(\S+mocha)\s/)
             assert.ok(mochaPathMatch, 'Should find mocha path in command')
+            const isAbsolute = path.isAbsolute(mochaPathMatch[1])
             assert.ok(
-                mochaPathMatch[1].startsWith('/'),
-                `Mocha path should be absolute (start with /): ${mochaPathMatch[1]}`
+                isAbsolute,
+                `Mocha path should be absolute: ${mochaPathMatch[1]}`
             )
             // Verify the full command structure matches what works
             assert.ok(
@@ -793,27 +817,31 @@ describe('TestRunner', () => {
             // Test with multiple levels of nesting
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            const testFilePath = path.normalize(
+                '/monorepo/apps/backend/packages/auth/test/unit/services/login.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/monorepo/apps/backend/packages/auth/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize('/monorepo')
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
-            existsSyncStub.callsFake((path: string) => {
+            existsSyncStub.callsFake((checkPath: string) => {
+                const normalized = path.normalize(checkPath)
                 // Test file exists
-                if (
-                    path ===
-                    '/monorepo/apps/backend/packages/auth/test/unit/services/login.test.ts'
-                ) {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in auth package
-                if (
-                    path ===
-                    '/monorepo/apps/backend/packages/auth/node_modules/.bin/mocha'
-                ) {
+                if (normalized === mochaPath) {
                     return true
                 }
                 // Mocha doesn't exist in intermediate directories
                 if (
-                    path.includes('/test/') ||
-                    path.includes('/unit/') ||
-                    path.includes('/services/')
+                    normalized.includes(path.normalize('/test/')) ||
+                    normalized.includes(path.normalize('/unit/')) ||
+                    normalized.includes(path.normalize('/services/'))
                 ) {
                     return false
                 }
@@ -827,25 +855,22 @@ describe('TestRunner', () => {
                     nodePath: 'node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot: '/monorepo',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file(
-                '/monorepo/apps/backend/packages/auth/test/unit/services/login.test.ts'
-            )
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock()
 
             const command = runner.getTestCommand(uri, testBlock)
 
             assert.ok(command, 'Command should be returned')
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes(
-                    '/monorepo/apps/backend/packages/auth/node_modules/.bin/mocha'
-                ),
+                normalizedCommand.includes(mochaPath),
                 `Command should find mocha in auth package: ${command}`
             )
         })
@@ -895,18 +920,28 @@ describe('TestRunner', () => {
             // Test that search doesn't go beyond workspace root
             sandbox.restore()
             sandbox = sinon.createSandbox()
+
+            const testFilePath = path.normalize(
+                '/workspace/packages/app/test/myclass.test.ts'
+            )
+            const mochaPath = path.normalize(
+                '/workspace/node_modules/.bin/mocha'
+            )
+            const workspaceRoot = path.normalize('/workspace')
+
             const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
             const checkedPaths: string[] = []
 
-            existsSyncStub.callsFake((path: string) => {
-                checkedPaths.push(path)
+            existsSyncStub.callsFake((checkPath: string) => {
+                checkedPaths.push(checkPath)
+                const normalized = path.normalize(checkPath)
 
                 // Test file exists
-                if (path === '/workspace/packages/app/test/myclass.test.ts') {
+                if (normalized === testFilePath) {
                     return true
                 }
                 // Mocha exists in workspace root
-                if (path === '/workspace/node_modules/.bin/mocha') {
+                if (normalized === mochaPath) {
                     return true
                 }
                 return false
@@ -919,28 +954,37 @@ describe('TestRunner', () => {
                     nodePath: 'node',
                     transpiler: 'tsx',
                     transpilerArgs: [],
-                    workspaceRoot: '/workspace',
+                    workspaceRoot: workspaceRoot,
                 })
             )
 
             runner.dispose()
             runner = new TestRunner()
 
-            const uri = Uri.file('/workspace/packages/app/test/myclass.test.ts')
+            const uri = Uri.file(testFilePath)
             const testBlock = createTestBlock()
 
             const command = runner.getTestCommand(uri, testBlock)
 
             assert.ok(command, 'Command should be returned')
+            const normalizedCommand = path.normalize(command)
             assert.ok(
-                command.includes('/workspace/node_modules/.bin/mocha'),
+                normalizedCommand.includes(mochaPath),
                 `Command should find mocha at workspace root: ${command}`
             )
 
             // Verify it checked paths within workspace but not outside
-            const pathsOutsideWorkspace = checkedPaths.filter(
-                (p) => !p.startsWith('/workspace') && p.includes('node_modules')
-            )
+            const pathsOutsideWorkspace = checkedPaths.filter((p) => {
+                const normalizedPath = path.normalize(p)
+                const relativePath = path.relative(
+                    workspaceRoot,
+                    normalizedPath
+                )
+                // If relative path starts with '..', it's outside workspace
+                return (
+                    relativePath.startsWith('..') && p.includes('node_modules')
+                )
+            })
             assert.strictEqual(
                 pathsOutsideWorkspace.length,
                 0,

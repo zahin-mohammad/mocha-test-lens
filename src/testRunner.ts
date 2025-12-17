@@ -323,9 +323,14 @@ export class TestRunner {
     ): string {
         let currentDir = path.dirname(testFilePath)
         const rootDir = workspaceRoot || path.parse(currentDir).root
+        let searching = true
+
+        // Normalize paths for cross-platform compatibility (Windows vs Unix)
+        const normalizedRootDir = path.normalize(rootDir)
 
         // Walk up the directory tree looking for node_modules/.bin/mocha
-        while (currentDir.startsWith(rootDir)) {
+        // Continue until we've checked the workspace root or filesystem root
+        while (searching) {
             const mochaPath = path.join(
                 currentDir,
                 'node_modules',
@@ -336,24 +341,39 @@ export class TestRunner {
                 return mochaPath
             }
 
+            // Normalize current directory for comparison
+            const normalizedCurrentDir = path.normalize(currentDir)
+
+            // Stop if we've reached the workspace root or filesystem root
+            if (normalizedCurrentDir === normalizedRootDir) {
+                searching = false
+                break
+            }
+
             const parentDir = path.dirname(currentDir)
             if (parentDir === currentDir) {
-                break // Reached root
+                searching = false
+                break // Reached filesystem root
             }
-            currentDir = parentDir
-        }
 
-        // Fallback: try workspace root if provided
-        if (workspaceRoot) {
-            const workspaceMochaPath = path.join(
-                workspaceRoot,
-                'node_modules',
-                '.bin',
-                'mocha'
-            )
-            if (fileSystem.existsSync(workspaceMochaPath)) {
-                return workspaceMochaPath
+            // Don't go above workspace root if it's set
+            // Use path.relative to check if parent is outside workspace root
+            if (workspaceRoot) {
+                const normalizedParent = path.normalize(parentDir)
+                const normalizedWorkspace = path.normalize(workspaceRoot)
+                const relativePath = path.relative(
+                    normalizedWorkspace,
+                    normalizedParent
+                )
+
+                // If relative path starts with '..', parent is outside workspace
+                if (relativePath.startsWith('..')) {
+                    searching = false
+                    break
+                }
             }
+
+            currentDir = parentDir
         }
 
         // Last resort: return relative path and hope it works
