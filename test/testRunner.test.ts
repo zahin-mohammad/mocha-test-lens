@@ -520,6 +520,435 @@ describe('TestRunner', () => {
         })
     })
 
+    describe('monorepo support', () => {
+        it('should find mocha binary in package subdirectory when workspace is monorepo root', () => {
+            // Simulate monorepo structure:
+            // /monorepo (workspace root)
+            //   /packages/wallet-platform/node_modules/.bin/mocha (mocha location)
+            //   /packages/wallet-platform/test/myclass.test.ts (test file)
+
+            // Restore and re-stub file system to simulate monorepo structure
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (
+                    path ===
+                    '/monorepo/packages/wallet-platform/test/myclass.test.ts'
+                ) {
+                    return true
+                }
+                // Mocha exists in package subdirectory
+                if (
+                    path ===
+                    '/monorepo/packages/wallet-platform/node_modules/.bin/mocha'
+                ) {
+                    return true
+                }
+                // Mocha doesn't exist in monorepo root
+                if (path === '/monorepo/node_modules/.bin/mocha') {
+                    return false
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: '/usr/bin/node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/monorepo',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file(
+                '/monorepo/packages/wallet-platform/test/myclass.test.ts'
+            )
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            // Should use the mocha from the package subdirectory, not the workspace root
+            assert.ok(
+                command.includes(
+                    '/monorepo/packages/wallet-platform/node_modules/.bin/mocha'
+                ),
+                `Command should include mocha from package subdirectory: ${command}`
+            )
+            // Should NOT use the workspace root mocha path
+            assert.ok(
+                !command.includes('/monorepo/node_modules/.bin/mocha'),
+                `Command should not include mocha from workspace root: ${command}`
+            )
+        })
+
+        it('should find mocha binary by walking up from test file directory', () => {
+            // Restore and re-stub file system
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (
+                    path === '/workspace/packages/app/test/unit/myclass.test.ts'
+                ) {
+                    return true
+                }
+                // Mocha exists in app directory
+                if (
+                    path === '/workspace/packages/app/node_modules/.bin/mocha'
+                ) {
+                    return true
+                }
+                // Mocha doesn't exist in test or unit directories
+                if (
+                    path.includes('/test/node_modules') ||
+                    path.includes('/unit/node_modules')
+                ) {
+                    return false
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: 'node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/workspace',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file(
+                '/workspace/packages/app/test/unit/myclass.test.ts'
+            )
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(
+                command.includes(
+                    '/workspace/packages/app/node_modules/.bin/mocha'
+                ),
+                `Command should include mocha from app directory: ${command}`
+            )
+        })
+
+        it('should fallback to workspace root mocha if not found near test file', () => {
+            // Restore and re-stub file system
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (path === '/workspace/test/myclass.test.ts') {
+                    return true
+                }
+                // Mocha exists in workspace root
+                if (path === '/workspace/node_modules/.bin/mocha') {
+                    return true
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: 'node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/workspace',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/workspace/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(
+                command.includes('/workspace/node_modules/.bin/mocha'),
+                `Command should include mocha from workspace root: ${command}`
+            )
+        })
+
+        it('should use absolute path for mocha binary in monorepo', () => {
+            // This test simulates the exact scenario from the user's issue
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (
+                    path ===
+                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/test/api/v2/walletShares/acceptBulkWalletShares.test.ts'
+                ) {
+                    return true
+                }
+                // Mocha exists in package subdirectory (absolute path)
+                if (
+                    path ===
+                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/node_modules/.bin/mocha'
+                ) {
+                    return true
+                }
+                // Mocha doesn't exist in intermediate directories
+                if (path.includes('/test/') && path.includes('node_modules')) {
+                    return false
+                }
+                if (path.includes('/api/') && path.includes('node_modules')) {
+                    return false
+                }
+                if (path.includes('/v2/') && path.includes('node_modules')) {
+                    return false
+                }
+                if (
+                    path.includes('/walletShares/') &&
+                    path.includes('node_modules')
+                ) {
+                    return false
+                }
+                // Mocha doesn't exist in monorepo root
+                if (
+                    path ===
+                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/node_modules/.bin/mocha'
+                ) {
+                    return false
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath:
+                        '/Users/zahinmohammad/.nvm/versions/node/v20.12.0/bin/node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot:
+                        '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file(
+                '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/test/api/v2/walletShares/acceptBulkWalletShares.test.ts'
+            )
+            const testBlock = createTestBlock({
+                fullName: 'v2.wallet.sharing.bulkwalletshares.accept',
+            })
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            // Should use absolute path to mocha in the package subdirectory
+            assert.ok(
+                command.includes(
+                    '/Users/zahinmohammad/workspace/bitgo/bitgo-microservices/packages/wallet-platform/node_modules/.bin/mocha'
+                ),
+                `Command should include absolute path to mocha: ${command}`
+            )
+            // Verify it's an absolute path (starts with /)
+            const mochaPathMatch = command.match(/(\S+mocha)\s/)
+            assert.ok(mochaPathMatch, 'Should find mocha path in command')
+            assert.ok(
+                mochaPathMatch[1].startsWith('/'),
+                `Mocha path should be absolute (start with /): ${mochaPathMatch[1]}`
+            )
+            // Verify the full command structure matches what works
+            assert.ok(
+                command.includes(
+                    '/Users/zahinmohammad/.nvm/versions/node/v20.12.0/bin/node'
+                ),
+                `Command should include node path: ${command}`
+            )
+            assert.ok(
+                command.includes('--grep'),
+                `Command should include grep pattern: ${command}`
+            )
+        })
+
+        it('should handle deeply nested monorepo structure', () => {
+            // Test with multiple levels of nesting
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (
+                    path ===
+                    '/monorepo/apps/backend/packages/auth/test/unit/services/login.test.ts'
+                ) {
+                    return true
+                }
+                // Mocha exists in auth package
+                if (
+                    path ===
+                    '/monorepo/apps/backend/packages/auth/node_modules/.bin/mocha'
+                ) {
+                    return true
+                }
+                // Mocha doesn't exist in intermediate directories
+                if (
+                    path.includes('/test/') ||
+                    path.includes('/unit/') ||
+                    path.includes('/services/')
+                ) {
+                    return false
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: 'node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/monorepo',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file(
+                '/monorepo/apps/backend/packages/auth/test/unit/services/login.test.ts'
+            )
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(
+                command.includes(
+                    '/monorepo/apps/backend/packages/auth/node_modules/.bin/mocha'
+                ),
+                `Command should find mocha in auth package: ${command}`
+            )
+        })
+
+        it('should return relative path when no workspace root is configured and mocha not found', () => {
+            // Test fallback behavior when nothing is found
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            existsSyncStub.callsFake((path: string) => {
+                // Test file exists
+                if (path === '/some/path/test/myclass.test.ts') {
+                    return true
+                }
+                // Mocha doesn't exist anywhere
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: 'node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/some/path/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            // Should fallback to relative path
+            assert.ok(
+                command.includes('node_modules/.bin/mocha'),
+                `Command should include relative mocha path as fallback: ${command}`
+            )
+        })
+
+        it('should stop searching at workspace root boundary', () => {
+            // Test that search doesn't go beyond workspace root
+            sandbox.restore()
+            sandbox = sinon.createSandbox()
+            const existsSyncStub = sandbox.stub(fileSystem, 'existsSync')
+            const checkedPaths: string[] = []
+
+            existsSyncStub.callsFake((path: string) => {
+                checkedPaths.push(path)
+
+                // Test file exists
+                if (path === '/workspace/packages/app/test/myclass.test.ts') {
+                    return true
+                }
+                // Mocha exists in workspace root
+                if (path === '/workspace/node_modules/.bin/mocha') {
+                    return true
+                }
+                return false
+            })
+
+            const getConfigStub = sandbox.stub(workspace, 'getConfiguration')
+            getConfigStub.returns(
+                createMockConfig({
+                    env: {},
+                    nodePath: 'node',
+                    transpiler: 'tsx',
+                    transpilerArgs: [],
+                    workspaceRoot: '/workspace',
+                })
+            )
+
+            runner.dispose()
+            runner = new TestRunner()
+
+            const uri = Uri.file('/workspace/packages/app/test/myclass.test.ts')
+            const testBlock = createTestBlock()
+
+            const command = runner.getTestCommand(uri, testBlock)
+
+            assert.ok(command, 'Command should be returned')
+            assert.ok(
+                command.includes('/workspace/node_modules/.bin/mocha'),
+                `Command should find mocha at workspace root: ${command}`
+            )
+
+            // Verify it checked paths within workspace but not outside
+            const pathsOutsideWorkspace = checkedPaths.filter(
+                (p) => !p.startsWith('/workspace') && p.includes('node_modules')
+            )
+            assert.strictEqual(
+                pathsOutsideWorkspace.length,
+                0,
+                'Should not check paths outside workspace root'
+            )
+        })
+    })
+
     describe('command building', () => {
         it('should run mocha directly for TypeScript files', async () => {
             const uri = Uri.file('/workspace/test/myclass.test.ts')

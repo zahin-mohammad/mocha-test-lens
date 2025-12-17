@@ -313,6 +313,53 @@ export class TestRunner {
         return this.getNodePath(config, workspaceRoot)
     }
 
+    /**
+     * Find the mocha binary by searching up from the test file directory
+     * This handles monorepo scenarios where mocha might be in a package subdirectory
+     */
+    private findMochaBinary(
+        testFilePath: string,
+        workspaceRoot?: string
+    ): string {
+        let currentDir = path.dirname(testFilePath)
+        const rootDir = workspaceRoot || path.parse(currentDir).root
+
+        // Walk up the directory tree looking for node_modules/.bin/mocha
+        while (currentDir.startsWith(rootDir)) {
+            const mochaPath = path.join(
+                currentDir,
+                'node_modules',
+                '.bin',
+                'mocha'
+            )
+            if (fileSystem.existsSync(mochaPath)) {
+                return mochaPath
+            }
+
+            const parentDir = path.dirname(currentDir)
+            if (parentDir === currentDir) {
+                break // Reached root
+            }
+            currentDir = parentDir
+        }
+
+        // Fallback: try workspace root if provided
+        if (workspaceRoot) {
+            const workspaceMochaPath = path.join(
+                workspaceRoot,
+                'node_modules',
+                '.bin',
+                'mocha'
+            )
+            if (fileSystem.existsSync(workspaceMochaPath)) {
+                return workspaceMochaPath
+            }
+        }
+
+        // Last resort: return relative path and hope it works
+        return 'node_modules/.bin/mocha'
+    }
+
     private buildTestCommand(
         filePath: string,
         grepPattern: string,
@@ -343,10 +390,8 @@ export class TestRunner {
         const nodePathResult = this.getNodePath(config, workspaceRoot)
         command += `${nodePathResult.path} `
 
-        // Determine paths relative to workspace root
-        const mochaPath = workspaceRoot
-            ? path.join(workspaceRoot, 'node_modules/.bin/mocha')
-            : 'node_modules/.bin/mocha'
+        // Find mocha binary - searches up from test file to handle monorepos
+        const mochaPath = this.findMochaBinary(filePath, workspaceRoot)
 
         // Run mocha directly - it will use .mocharc.json or package.json mocha config
         // Mocha config files handle transpiler setup, require modules, etc.
