@@ -26,7 +26,7 @@ try {
             env: {
                 ...process.env,
                 GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
-                VSCE_TOKEN: process.env.VSCE_TOKEN || '',
+                VSCE_PAT: process.env.VSCE_PAT || '',
             },
         })
     } catch (error) {

@@ -66,13 +66,16 @@ jobs:
     needs: [lint, test]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -85,8 +88,8 @@ jobs:
       
       - name: Run semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSCE_TOKEN: ${{ secrets.VSCE_PAT }}
         run: npx semantic-release
       
       - name: Publish to Open VSX
