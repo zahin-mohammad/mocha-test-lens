@@ -246,6 +246,52 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 7. Build the extension: `npm run compile`
 8. Test in VS Code: Press `F5` to launch Extension Development Host
 
+### CI/CD and Publishing
+
+This project uses GitHub Actions for automated CI/CD:
+
+- **CI Workflow** (`.github/workflows/ci.yml`): Runs on all pushes and PRs
+    - Runs tests, linting, and prettier checks
+    - Ensures code quality before merging
+
+- **Release Workflow** (`.github/workflows/release.yml`): Runs on pushes to `main`/`master`
+    - Uses semantic-release for automated versioning and changelog generation
+    - Publishes to VS Code Marketplace
+    - Publishes to Open VSX Registry
+    - Creates GitHub releases with VSIX assets
+
+#### Required GitHub Secrets
+
+To enable automated publishing, configure these secrets in your repository settings (Settings → Secrets and variables → Actions):
+
+2. **`VSCE_PAT`**: VS Code Marketplace Personal Access Token
+    - Required for publishing to VS Code Marketplace
+    - Create at: https://dev.azure.com/ (Azure DevOps)
+    - Follow guide: https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token
+
+3. **`OVSX_TOKEN`**: Open VSX Registry Access Token
+    - Required for publishing to Open VSX
+    - Create at: https://open-vsx.org/user-settings/tokens (after signing Publisher Agreement)
+    - Follow guide: https://github.com/EclipseFdn/open-vsx.org/wiki/Publishing-Extensions
+
+#### Commit Message Format
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning:
+
+- `feat:` - New feature (triggers minor version bump)
+- `fix:` - Bug fix (triggers patch version bump)
+- `docs:` - Documentation changes (no version bump)
+- `chore:` - Maintenance tasks (no version bump)
+- `BREAKING CHANGE:` - Breaking changes (triggers major version bump)
+
+Example:
+
+```
+feat: add support for Jest test runner
+
+This adds CodeLens support for Jest tests in addition to Mocha tests.
+```
+
 ### Code Style
 
 - This project uses Prettier for code formatting

@@ -2,105 +2,103 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
 jobs:
   lint:
     name: Lint and Format Check
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '22'
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
-      - name: Check code formatting
-        run: npm run prettier:check
-
+      
       - name: Run linter
         run: npm run lint
+      
+      - name: Run prettier check
+        run: npm run prettier:check
 
   test:
     name: Test
     runs-on: ${{ matrix.os }}
-    needs: lint
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [20.x, 22.x]
-
+        node-version: ['22.x', '24.x']
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js ${{ matrix.node-version }}
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
+      
       - name: Run tests
         run: npm test
-
-      - name: Build extension
+      
+      - name: Compile TypeScript
         run: npm run compile
-
-      - name: Security audit
-        run: npm audit --audit-level=high || true
-        continue-on-error: true
 
   release:
     name: Release
-    runs-on: ubuntu-latest
     needs: [lint, test]
+    runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    # Ensure only one release job runs at a time per branch
-    concurrency:
-      group: release-${{ github.ref }}
-      cancel-in-progress: false
-    permissions:
-      contents: write
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+          persist-credentials: false
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '22'
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
-      - name: Build extension
-        run: npm run compile
-
-      - name: Prepare and package release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VSCE_TOKEN: ${{ secrets.VSCE_PAT }}
-        run: node scripts/prepare-release.js
-
+      
       - name: Run semantic-release
-        id: semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VSCE_TOKEN: ${{ secrets.VSCE_PAT }}
-        run: npm run semantic-release
-
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx semantic-release
+      
+      - name: Publish to Open VSX
+        if: success()
+        env:
+          OVSX_TOKEN: ${{ secrets.OVSX_TOKEN }}
+        run: |
+          # Find the generated .vsix file
+          VSIX_FILE=$(ls *.vsix | head -n 1)
+          if [ -z "$VSIX_FILE" ]; then
+            echo "No .vsix file found, skipping Open VSX publish"
+            exit 0
+          fi
+          echo "Publishing $VSIX_FILE to Open VSX..."
+          npx ovsx publish "$VSIX_FILE" -p "$OVSX_TOKEN"
